@@ -72,11 +72,12 @@ function App() {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [dupGroups, setDupGroups] = useState<DuplicateGroup[] | null>(null);
   const [activePlugin, setActivePlugin] = useState<Plugin | null>(null);
-  const [undoState, setUndoState] = useState<{
-    itemId: number;
-    original: string;
-    pluginName: string;
+  const [notice, setNotice] = useState<{
+    text: string;
+    actionLabel?: string;
+    onAction?: () => void;
   } | null>(null);
+  const [noticeBottom, setNoticeBottom] = useState<number | null>(null);
   const [connected, setConnected] = useState(false);
   const activeIdRef = useRef<number | null>(null);
   activeIdRef.current = activeId;
@@ -277,28 +278,48 @@ function App() {
   }, [authed, view, refreshActivePlugin]);
 
   useEffect(() => {
-    if (!undoState) return;
-    const timer = setTimeout(() => setUndoState(null), 6000);
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 6000);
     return () => clearTimeout(timer);
-  }, [undoState]);
+  }, [notice]);
+
+  const showNotice = (n: { text: string; actionLabel?: string; onAction?: () => void }) => {
+    const input = document.querySelector<HTMLElement>('.add-item-input');
+    setNoticeBottom(
+      input ? window.innerHeight - input.getBoundingClientRect().top + 12 : null,
+    );
+    setNotice(n);
+  };
 
   const handlePluginApply = async (item: ClipboardItem, result: string, pluginName: string) => {
     if (!activePlugin) return;
     await api.updateItem(item.id, result, item.content);
-    setUndoState({ itemId: item.id, original: item.content, pluginName });
-  };
-
-  const handleUndoPlugin = async () => {
-    if (!undoState) return;
-    const { itemId, original } = undoState;
-    setUndoState(null);
-    await api.updateItem(itemId, original, null);
+    showNotice({
+      text: `已应用插件「${pluginName}」`,
+      actionLabel: '撤销',
+      onAction: async () => {
+        setNotice(null);
+        await api.updateItem(item.id, item.content, null);
+      },
+    });
   };
 
   const handleCheckDuplicates = async () => {
     if (activeId === null) return;
     const { groups } = await api.duplicates(activeId);
     setDupGroups(groups.length > 0 ? groups : []);
+    showNotice(
+      groups.length > 0
+        ? {
+            text: `发现 ${groups.length} 组重复条目，已高亮显示`,
+            actionLabel: '清除高亮',
+            onAction: () => {
+              setNotice(null);
+              setDupGroups(null);
+            },
+          }
+        : { text: '未发现重复条目' },
+    );
   };
 
   const activeItems = activeId !== null ? itemsByClipboard[activeId] : undefined;
@@ -377,18 +398,22 @@ function App() {
         </div>
       )}
 
-      {undoState && (
-        <div className="plugin-undo-toast" role="status">
-          <span>
-            已应用插件「{undoState.pluginName}」
-          </span>
-          <button className="plugin-undo-button" onClick={handleUndoPlugin}>
-            撤销
-          </button>
+      {notice && (
+        <div
+          className="notice-toast"
+          role="status"
+          style={noticeBottom !== null ? { bottom: noticeBottom } : undefined}
+        >
+          <span>{notice.text}</span>
+          {notice.actionLabel && (
+            <button className="notice-action-button" onClick={notice.onAction}>
+              {notice.actionLabel}
+            </button>
+          )}
           <button
-            className="plugin-undo-close"
+            className="notice-close"
             aria-label="关闭"
-            onClick={() => setUndoState(null)}
+            onClick={() => setNotice(null)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>

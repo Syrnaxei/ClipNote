@@ -16,9 +16,9 @@
   overflow: hidden;
 }
 
-.plugin-undo-toast {
+.notice-toast {
   position: fixed;
-  bottom: 220px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -29,12 +29,12 @@
   background-color: var(--surface-3);
   box-shadow: var(--whisper);
   z-index: 1100;
-  animation: plugin-undo-in 0.2s ease;
+  animation: notice-in 0.2s ease;
   font-size: 14px;
   color: var(--text);
 }
 
-@keyframes plugin-undo-in {
+@keyframes notice-in {
   from {
     opacity: 0;
     transform: translateX(-50%) translateY(8px);
@@ -45,7 +45,7 @@
   }
 }
 
-.plugin-undo-button {
+.notice-action-button {
   border: none;
   background-color: transparent;
   color: var(--accent);
@@ -55,11 +55,11 @@
   padding: 2px 4px;
 }
 
-.plugin-undo-button:hover {
+.notice-action-button:hover {
   text-decoration: underline;
 }
 
-.plugin-undo-close {
+.notice-close {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -70,6 +70,6 @@
   padding: 2px;
 }
 
-.plugin-undo-close:hover {
+.notice-close:hover {
   color: var(--text);
 }
