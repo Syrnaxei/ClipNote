@@ -178,13 +178,11 @@ function ClipboardList({
         )}
       </div>
 
-      {dupGroups !== null && (
-        <div className={`duplicates-banner ${duplicateIds.size > 0 ? 'has-duplicates' : ''}`}>
-          {duplicateIds.size > 0
-            ? `发现 ${dupGroups.length} 组重复条目，已高亮显示`
-            : '未发现重复条目'}
+      {dupGroups !== null && duplicateIds.size > 0 && (
+        <div className="duplicates-banner">
+          <span>发现 {dupGroups.length} 组重复条目，已高亮显示</span>
           <button className="clear-duplicates-button" onClick={onClearDuplicates}>
-            关闭
+            取消高亮
           </button>
         </div>
       )}

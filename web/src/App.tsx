@@ -308,21 +308,16 @@ function App() {
     if (activeId === null) return;
     const { groups } = await api.duplicates(activeId);
     setDupGroups(groups.length > 0 ? groups : []);
-    showNotice(
-      groups.length > 0
-        ? {
-            text: `发现 ${groups.length} 组重复条目，已高亮显示`,
-            actionLabel: '清除高亮',
-            onAction: () => {
-              setNotice(null);
-              setDupGroups(null);
-            },
-          }
-        : { text: '未发现重复条目' },
-    );
+    if (groups.length === 0) {
+      showNotice({ text: '未发现重复条目' });
+    }
   };
 
   const activeItems = activeId !== null ? itemsByClipboard[activeId] : undefined;
+
+  useEffect(() => {
+    setDupGroups(null);
+  }, [activeId]);
 
   if (!authed) {
     return (

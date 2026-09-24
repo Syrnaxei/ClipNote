@@ -217,36 +217,30 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 12px 18px;
   margin-bottom: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background-color: var(--surface);
   font-size: 14px;
-  color: var(--text-2);
-}
-
-.duplicates-banner.has-duplicates {
-  border: 1px solid var(--accent);
-  background-color: var(--accent-soft);
   color: var(--text);
-  font-weight: 500;
 }
 
 .clear-duplicates-button {
+  flex-shrink: 0;
   background: none;
   border: none;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-3);
+  color: var(--accent);
   padding: 4px 10px;
   border-radius: 8px;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .clear-duplicates-button:hover {
-  color: var(--text);
   background-color: var(--surface-2);
 }
 
