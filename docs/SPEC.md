@@ -1,11 +1,11 @@
-# ClipVault 项目说明书
+# ClipNote 项目说明书
 
 > 版本：v1.0（2026-09-19）
 > 状态：设计定稿，待开发
 
 ## 1. 项目概述
 
-ClipVault 是一个**纯文本剪切板多设备同步服务**。用户在任何设备（桌面端脚本/工具、iOS 快捷指令、Web 界面）上将文本内容插入到某个剪切板，所有打开的设备都能**实时**看到最新内容，并可一键复制回本地剪贴板。
+ClipNote 是一个**纯文本剪切板多设备同步服务**。用户在任何设备（桌面端脚本/工具、iOS 快捷指令、Web 界面）上将文本内容插入到某个剪切板，所有打开的设备都能**实时**看到最新内容，并可一键复制回本地剪贴板。
 
 核心特性：
 
@@ -205,7 +205,7 @@ CREATE INDEX idx_items_hash ON clipboard_items(clipboard_id, content_hash);
 
 ### 6.1 现状与迁移
 
-现有 preview（`Preview/web/clipvault-frontend`）为 React 19 + CRA 的纯 mock 版本，UI 结构完整：
+现有 preview（`Preview/web/clipnote-frontend`）为 React 19 + CRA 的纯 mock 版本，UI 结构完整：
 
 - `App.js`：持有 `clipboards` / `clipboardItems` 两份 mock state 及全部增删改逻辑
 - `Sidebar`：剪切板列表 + 按名称搜索 + 新建/删除
@@ -227,7 +227,7 @@ CREATE INDEX idx_items_hash ON clipboard_items(clipboard_id, content_hash);
 ## 7. 部署（Docker Compose）
 
 ```
-clipvault/
+clipnote/
 ├── server/               # Node.js 后端
 │   ├── src/
 │   ├── package.json
@@ -247,7 +247,7 @@ clipvault/
 - `server`：环境变量 `API_KEY`（必填）、`PORT`；volume 挂载数据目录（SQLite 文件）。
 - `web`：多阶段构建，最终以 `nginx:alpine`（或纯文件 stage）形态将 `/usr/share/caddy` 产物通过 named volume 共享给 Caddy —— 实际实现取"构建产物 volume 共享"方案，`web` 容器无需常驻运行。
 - `caddy`：唯一暴露端口的容器（如 `31291:80`），挂载 web 构建产物 volume 与 Caddyfile。
-- 数据持久化：named volume `clipvault-data` → `/data`（SQLite 数据库文件所在）。
+- 数据持久化：named volume `clipnote-data` → `/data`（SQLite 数据库文件所在）。
 - 无 HTTPS（外部经 `IP:端口` 明文访问，由用户自行决定是否在前置网关加 TLS）。
 
 ## 8. 安全要点

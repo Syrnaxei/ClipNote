@@ -1,4 +1,4 @@
-# ClipVault — Docker Compose（中国大陆专用版）
+# ClipNote — Docker Compose（中国大陆专用版）
 #
 # 与 docker-compose.yml 的差异：
 #   1. 基础镜像走国内可用的 Docker 镜像加速（DaoCloud 公共源，可按需替换）
@@ -21,7 +21,7 @@ services:
       PORT: 3000
       DATA_DIR: /data
     volumes:
-      - clipvault-data:/data
+      - clipnote-data:/data
     restart: unless-stopped
 
   web:
@@ -38,7 +38,7 @@ services:
   caddy:
     image: ${CADDY_IMAGE:-docker.m.daocloud.io/library/caddy:2-alpine}
     ports:
-      - "${CLIPVAULT_PORT:-31291}:80"
+      - "${CLIPNOTE_PORT:-31291}:80"
     volumes:
       - web-dist:/srv/www:ro
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
@@ -52,7 +52,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  clipvault-data:
+  clipnote-data:
   web-dist:
   caddy-data:
   caddy-config:

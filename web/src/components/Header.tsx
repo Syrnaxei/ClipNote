@@ -44,7 +44,7 @@ function Header({
             <path d="M44 20 a16 16 0 1 0 0 24" stroke="currentColor" strokeWidth="7" strokeLinecap="round" />
             <circle className="logo-icon-dot" cx="46" cy="32" r="4" />
           </svg>
-          <span className="logo-text">ClipVault</span>
+          <span className="logo-text">ClipNote</span>
         </div>
       </div>
 

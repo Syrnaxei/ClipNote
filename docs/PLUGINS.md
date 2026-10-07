@@ -1,16 +1,17 @@
-# ClipVault 插件规范 (.CVT)
+# ClipNote 插件规范 (.CVT)
 
-ClipVault 文字处理插件是运行在**前端 Web Worker 沙箱**中的纯文本变换脚本：一个入口（条目文本），一个出口（处理后的文本）。插件以 `.CVT` 文件编写，通过「插件管理」界面导入，存储在服务器上供所有设备共享。
+ClipNote 文字处理插件是运行在**前端 Web Worker 沙箱**中的纯文本变换脚本：一个入口（条目文本），一个出口（处理后的文本）。插件以 `.CVT` 文件编写，通过「插件管理」界面导入，存储在服务器上供所有设备共享。
 
 ## 1. 文件格式
 
 `.CVT` 文件为 UTF-8 编码的纯文本，由两部分组成：
 
-1. **元数据块**（必须）：文件开头的块注释，标记为 `ClipVault-Plugin`，内部是合法 JSON
+1. **元数据块**（必须）：文件开头的块注释，标记为 `ClipNote-Plugin`，内部是合法 JSON
+   （旧名称 `ClipVault-Plugin` 仍可正常导入，兼容既有插件）
 2. **代码体**（必须）：元数据块之后的全部内容，定义 `process` 函数
 
 ```text
-/* ClipVault-Plugin
+/* ClipNote-Plugin
 {
   "id": "trim-whitespace",
   "name": "去除首尾空白",
@@ -60,7 +61,7 @@ function process(input) {
 ### 示例 1：去除首尾空白
 
 ```text
-/* ClipVault-Plugin
+/* ClipNote-Plugin
 {
   "id": "trim-whitespace",
   "name": "去除首尾空白",
@@ -78,7 +79,7 @@ function process(input) {
 ### 示例 2：多行合并为一行
 
 ```text
-/* ClipVault-Plugin
+/* ClipNote-Plugin
 {
   "id": "merge-lines",
   "name": "合并为一行",
@@ -99,7 +100,7 @@ function process(input) {
 ### 示例 3：自定义替换(修改正则即可)
 
 ```text
-/* ClipVault-Plugin
+/* ClipNote-Plugin
 {
   "id": "fullwidth-to-halfwidth",
   "name": "全角转半角",

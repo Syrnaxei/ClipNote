@@ -1,4 +1,4 @@
-# ClipVault — Docker Compose（国际版，官方镜像源）
+# ClipNote — Docker Compose（国际版，官方镜像源）
 services:
   server:
     build:
@@ -10,7 +10,7 @@ services:
       PORT: 3000
       DATA_DIR: /data
     volumes:
-      - clipvault-data:/data
+      - clipnote-data:/data
     restart: unless-stopped
 
   # 构建前端静态文件并写入共享 volume，完成后即退出（非常驻）
@@ -27,7 +27,7 @@ services:
   caddy:
     image: ${CADDY_IMAGE:-caddy:2-alpine}
     ports:
-      - "${CLIPVAULT_PORT:-31291}:80"
+      - "${CLIPNOTE_PORT:-31291}:80"
     volumes:
       - web-dist:/srv/www:ro
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  clipvault-data:
+  clipnote-data:
   web-dist:
   caddy-data:
   caddy-config:

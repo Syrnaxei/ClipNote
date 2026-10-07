@@ -1,3 +1,5 @@
+import { migrateStorageKey } from './storage';
+
 export type PinStyle = 'bar' | 'corner' | 'stripes' | 'notch';
 
 export const PIN_STYLES: { value: PinStyle; label: string }[] = [
@@ -7,11 +9,14 @@ export const PIN_STYLES: { value: PinStyle; label: string }[] = [
   { value: 'notch', label: '切角' },
 ];
 
+const STORAGE_KEY = 'clipnote_pin_style';
+migrateStorageKey('clipvault_pin_style', STORAGE_KEY);
+
 export function loadPinStyle(): PinStyle {
-  const saved = localStorage.getItem('clipvault_pin_style');
+  const saved = localStorage.getItem(STORAGE_KEY);
   return PIN_STYLES.some((s) => s.value === saved) ? (saved as PinStyle) : 'bar';
 }
 
 export function savePinStyle(style: PinStyle): void {
-  localStorage.setItem('clipvault_pin_style', style);
+  localStorage.setItem(STORAGE_KEY, style);
 }

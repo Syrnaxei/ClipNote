@@ -6,7 +6,18 @@ import { config } from './config.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
 
-const db = new Database(path.join(config.dataDir, 'clipvault.db'));
+// 项目更名迁移：旧版数据库文件改用新名（连同 WAL/SHM 附属文件）
+const dbPath = path.join(config.dataDir, 'clipnote.db');
+const legacyDbPath = path.join(config.dataDir, 'clipvault.db');
+if (!fs.existsSync(dbPath) && fs.existsSync(legacyDbPath)) {
+  for (const suffix of ['', '-wal', '-shm']) {
+    if (fs.existsSync(legacyDbPath + suffix)) {
+      fs.renameSync(legacyDbPath + suffix, dbPath + suffix);
+    }
+  }
+}
+
+const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');

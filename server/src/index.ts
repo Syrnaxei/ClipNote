@@ -23,5 +23,5 @@ const server = http.createServer(app);
 initWs(server);
 
 server.listen(config.port, () => {
-  console.log(`ClipVault server listening on port ${config.port}`);
+  console.log(`ClipNote server listening on port ${config.port}`);
 });

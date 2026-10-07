@@ -1,4 +1,4 @@
-# ClipVault 部署文档（Docker Compose）
+# ClipNote 部署文档（Docker Compose）
 
 > 依据 SPEC.md 第 7 节的部署架构：Caddy（反向代理 + 静态托管）→ server（Node.js + SQLite），
 > 前端构建产物经共享 volume 交给 Caddy，数据持久化于 named volume。
@@ -16,7 +16,7 @@
    └─────────┘                  └─────────┬──────────┘
         ▲                                 │
         │ web-dist 卷（构建产物）          ▼
-   ┌─────────┐                      SQLite 卷 clipvault-data
+   ┌─────────┐                      SQLite 卷 clipnote-data
    │   web   │ （构建后退出）
    └─────────┘
 ```
@@ -34,7 +34,7 @@
 ## 2. 文件清单
 
 ```
-clipvault/
+clipnote/
 ├── server/Dockerfile         # 多阶段构建：node:22-alpine3.22；better-sqlite3 v13 为 N-API
 │                             #   预编译二进制随包分发，构建无需任何编译工具链
 ├── web/Dockerfile            # 多阶段构建：产出静态文件，启动时拷入共享卷后退出
@@ -61,7 +61,7 @@ clipvault/
 
 ```bash
 # 1. 进入项目根目录
-cd clipvault
+cd clipnote
 
 # 2. 配置环境变量
 cp .env.example .env
@@ -90,7 +90,7 @@ docker compose -f docker-compose.cn.yml up -d --build
 | 变量 | 必填 | 默认 | 说明 |
 |------|------|------|------|
 | `API_KEY` | 是 | — | API 鉴权 Key，所有 `/api/*` 与 `/ws` 请求需 `Authorization: Bearer <API_KEY>` |
-| `CLIPVAULT_PORT` | 否 | `31291` | 对外端口，外部访问 `http://<IP>:<端口>` |
+| `CLIPNOTE_PORT` | 否 | `31291` | 对外端口，外部访问 `http://<IP>:<端口>` |
 
 server 容器内部固定 `PORT=3000`、`DATA_DIR=/data`，无需修改。
 
@@ -114,29 +114,54 @@ docker compose down -v
 
 ## 6. 数据备份与恢复
 
-SQLite 数据库位于 named volume `clipvault-data` 中（容器内 `/data/clipvault.db`，WAL 模式）。
+SQLite 数据库位于 named volume `clipnote-data` 中（容器内 `/data/clipnote.db`，WAL 模式）。
 
 **在线备份（推荐）**：
 
 ```bash
 docker compose exec server node -e \
-  "require('better-sqlite3')('/data/clipvault.db').exec(\"VACUUM INTO '/data/backup.db'\")"
-docker compose cp server:/data/backup.db ./clipvault-backup.db
+  "require('better-sqlite3')('/data/clipnote.db').exec(\"VACUUM INTO '/data/backup.db'\")"
+docker compose cp server:/data/backup.db ./clipnote-backup.db
 ```
 
 **离线备份**：`docker compose down` 后执行
 
 ```bash
-docker run --rm -v clipvault_clipvault-data:/data -v "$PWD":/backup alpine \
-  cp /data/clipvault.db /backup/
+docker run --rm -v clipnote_clipnote-data:/data -v "$PWD":/backup alpine \
+  cp /data/clipnote.db /backup/
 ```
 
+> 卷名前缀为 compose 项目名（默认取目录名），实际名称以 `docker volume ls` 为准。
 > 中国大陆版离线备份命令同样可用（alpine 镜像小，拉取一次即可；如拉取失败可换成
 > `docker.m.daocloud.io/library/alpine:3.20`）。
 
-恢复：停机后把备份的 `.db` 文件拷回 `/data/clipvault.db`，再 `up -d` 即可。
+恢复：停机后把备份的 `.db` 文件拷回 `/data/clipnote.db`，再 `up -d` 即可。
 
-## 7. 换用其他镜像源
+## 7. 从 ClipVault（旧名称）迁移
+
+项目已由 ClipVault 更名为 ClipNote，旧部署升级时：
+
+- **环境变量**：`.env` 中 `CLIPVAULT_PORT` 改为 `CLIPNOTE_PORT`（不设则默认 `31291`，行为不变）。
+- **数据库文件**：server 启动时会自动把 `/data/clipvault.db` 重命名为 `clipnote.db`（含 WAL/SHM 附属文件），无需人工干预——前提是旧数据已在正确的卷中（见下）。
+- **Docker 卷**：compose 卷名已从 `clipvault-data` 改为 `clipnote-data`，Docker 不支持卷重命名，需手动搬运数据：
+
+```bash
+docker compose down
+docker volume ls                      # 找到旧卷，形如 <项目名>_clipvault-data
+docker volume create <项目名>_clipnote-data
+docker run --rm \
+  -v <项目名>_clipvault-data:/from \
+  -v <项目名>_clipnote-data:/to \
+  alpine sh -c "cp -a /from/. /to/"
+docker compose up -d --build
+# 确认数据完好后再删除旧卷
+docker volume rm <项目名>_clipvault-data
+```
+
+- **浏览器端**：主题、设备名、API Key 等 localStorage 设置会在首次打开新版页面时自动迁移，无需操作。
+- **插件**：`/* ClipVault-Plugin */` 旧标记的 `.cvt` 插件仍可正常导入使用。
+
+## 8. 换用其他镜像源
 
 国内镜像加速站可用性时常变化。如某个源拉取失败，换源无需改 Dockerfile —— 在 `.env` 中覆盖变量即可（两版 compose 均支持变量覆盖）：
 
@@ -161,12 +186,12 @@ NPM_REGISTRY=https://registry.npmmirror.com
 
 改后 `systemctl restart docker`（Windows/macOS 在 Docker Desktop 设置中配置）。
 
-## 8. 常见问题
+## 9. 常见问题
 
 | 现象 | 处理 |
 |------|------|
 | `API_KEY is required` 报错 | 未创建 `.env` 或未设置 `API_KEY`，见第 3 节 |
-| 拉取镜像超时/失败 | 用 `docker-compose.cn.yml`，或按第 7 节换源 |
+| 拉取镜像超时/失败 | 用 `docker-compose.cn.yml`，或按第 8 节换源 |
 | 页面打开但无数据/接口 401 | `.env` 的 `API_KEY` 与客户端（脚本/快捷指令）携带的不一致 |
 | 修改前端代码不生效 | 必须带 `--build` 重新构建（web 服务执行构建并刷新 `web-dist` 卷） |
 | WebSocket 无法连接 | Caddyfile 已透传 `/ws` 升级请求，检查是否直连了 server 端口（应统一走对外端口） |

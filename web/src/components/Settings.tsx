@@ -34,7 +34,7 @@ const ACTION_ICONS: Record<ItemActionId, React.ReactNode> = {
 };
 
 const APP_VERSION = '1.0.0';
-const PROJECT_URL = 'https://github.com/Syrnaxei/ClipVault';
+const PROJECT_URL = 'https://github.com/Syrnaxei/ClipNote';
 
 interface SettingsProps {
   theme: 'light' | 'dark';

@@ -1,3 +1,5 @@
+import { migrateStorageKey } from './storage';
+
 export type ItemActionId = 'plugin' | 'edit' | 'delete' | 'copy';
 
 export const ITEM_ACTIONS: { id: ItemActionId; label: string; desc: string }[] = [
@@ -12,7 +14,8 @@ export interface ItemActionSetting {
   hidden: ItemActionId[];
 }
 
-const STORAGE_KEY = 'clipvault_item_actions';
+const STORAGE_KEY = 'clipnote_item_actions';
+migrateStorageKey('clipvault_item_actions', STORAGE_KEY);
 const DEFAULT_ORDER: ItemActionId[] = ITEM_ACTIONS.map((a) => a.id);
 
 export function loadItemActions(): ItemActionSetting {

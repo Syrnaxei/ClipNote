@@ -1,6 +1,8 @@
 import type { Clipboard, ClipboardItem, DuplicateGroup, Plugin } from './types';
+import { migrateStorageKey } from './storage';
 
-const KEY_STORAGE = 'clipvault_api_key';
+const KEY_STORAGE = 'clipnote_api_key';
+migrateStorageKey('clipvault_api_key', KEY_STORAGE);
 
 let apiKey = localStorage.getItem(KEY_STORAGE) ?? '';
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 一键启动 ClipVault 前后端开发环境（详见 docs/DEV.md）
+# 一键启动 ClipNote 前后端开发环境（详见 docs/DEV.md）
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

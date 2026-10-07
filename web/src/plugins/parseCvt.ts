@@ -14,7 +14,8 @@ export interface CvtPlugin {
 
 export class CvtParseError extends Error {}
 
-const META_BLOCK_RE = /\/\*\s*ClipVault-Plugin\s*([\s\S]*?)\*\//;
+// 兼容旧名称 ClipVault-Plugin 的元数据块
+const META_BLOCK_RE = /\/\*\s*Clip(?:Note|Vault)-Plugin\s*([\s\S]*?)\*\//;
 const VERSION_RE = /^\d+\.\d+\.\d+$/;
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -54,7 +55,7 @@ function parseGithubUrl(value: unknown): string | null {
 export function parseCvt(source: string): CvtPlugin {
   const match = META_BLOCK_RE.exec(source);
   if (!match) {
-    throw new CvtParseError('未找到插件元数据块(须为 /* ClipVault-Plugin { … } */)');
+    throw new CvtParseError('未找到插件元数据块(须为 /* ClipNote-Plugin { … } */，旧版 /* ClipVault-Plugin { … } */ 仍兼容)');
   }
   let raw: Record<string, unknown>;
   try {

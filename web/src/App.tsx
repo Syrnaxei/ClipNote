@@ -14,11 +14,17 @@ import {
   type ItemActionSetting,
 } from './itemActions';
 import type { Clipboard, ClipboardItem, DuplicateGroup, Plugin, WsEvent } from './types';
+import { migrateStorageKey } from './storage';
 
 type Theme = 'light' | 'dark';
 
+const THEME_KEY = 'clipnote_theme';
+const DEVICE_NAME_KEY = 'clipnote_device_name';
+migrateStorageKey('clipvault_theme', THEME_KEY);
+migrateStorageKey('clipvault_device_name', DEVICE_NAME_KEY);
+
 function initialTheme(): Theme {
-  return localStorage.getItem('clipvault_theme') === 'dark' ? 'dark' : 'light';
+  return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
 }
 
 function KeyGate({ onAuthed }: { onAuthed: () => void }) {
@@ -41,7 +47,7 @@ function KeyGate({ onAuthed }: { onAuthed: () => void }) {
   return (
     <div className="key-gate">
       <form className="key-gate-card" onSubmit={submit}>
-        <h1>ClipVault</h1>
+        <h1>ClipNote</h1>
         <p>请输入 API Key 以访问剪切板</p>
         <input
           type="password"
@@ -63,7 +69,7 @@ function App() {
   const [pinStyle, setPinStyle] = useState<PinStyle>(loadPinStyle);
   const [itemActions, setItemActions] = useState<ItemActionSetting>(loadItemActions);
   const [deviceName, setDeviceName] = useState(
-    () => localStorage.getItem('clipvault_device_name') ?? '我的电脑',
+    () => localStorage.getItem(DEVICE_NAME_KEY) ?? '我的电脑',
   );
   const [view, setView] = useState<'main' | 'settings' | 'plugins'>('main');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -84,7 +90,7 @@ function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem('clipvault_theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
   useEffect(() => {
@@ -96,7 +102,7 @@ function App() {
   }, [itemActions]);
 
   useEffect(() => {
-    localStorage.setItem('clipvault_device_name', deviceName);
+    localStorage.setItem(DEVICE_NAME_KEY, deviceName);
   }, [deviceName]);
 
   const refreshAll = useCallback(async () => {
