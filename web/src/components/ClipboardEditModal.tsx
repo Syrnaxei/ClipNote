@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Clipboard } from '../types';
+import { copyText } from '../clipboard';
 import './ClipboardEditModal.css';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -41,7 +42,7 @@ function ClipboardEditModal({ clipboard, onCancel, onSave }: ClipboardEditModalP
   };
 
   const copyUuid = async () => {
-    await navigator.clipboard.writeText(clipboard.uuid);
+    if (!(await copyText(clipboard.uuid))) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };

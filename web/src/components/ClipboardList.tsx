@@ -17,7 +17,7 @@ interface ClipboardListProps {
   onAddItem: (content: string) => void;
   onDeleteItem: (id: number) => void;
   onEditItem: (id: number, newContent: string) => void;
-  onCopyItem: (content: string) => void;
+  onCopyItem: (content: string) => Promise<boolean>;
   onPluginApply: (item: ClipboardItem, result: string, pluginName: string) => Promise<void>;
   onCheckDuplicates: () => void;
   onClearDuplicates: () => void;

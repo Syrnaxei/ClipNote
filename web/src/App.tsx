@@ -6,6 +6,7 @@ import ClipboardList from './components/ClipboardList';
 import Settings from './components/Settings';
 import PluginsView from './components/PluginsView';
 import { api, ApiKeyError, clearApiKey, getApiKey, hasApiKey, setApiKey } from './api';
+import { copyText } from './clipboard';
 import { connectWs } from './ws';
 import { loadPinStyle, savePinStyle, type PinStyle } from './pinStyle';
 import {
@@ -264,8 +265,10 @@ function App() {
     await api.updateItem(id, newContent);
   };
 
-  const handleCopyItem = (content: string) => {
-    navigator.clipboard.writeText(content);
+  const handleCopyItem = async (content: string) => {
+    const ok = await copyText(content);
+    if (!ok) showNotice({ text: '复制失败，请手动复制' });
+    return ok;
   };
 
   const refreshActivePlugin = useCallback(async () => {

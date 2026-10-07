@@ -111,6 +111,27 @@
   color: var(--accent);
 }
 
+.action-button.copy.copied,
+.action-button.copy.copied:hover {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+.action-button.copy.copied svg {
+  animation: copy-check-pop 0.2s ease;
+}
+
+@keyframes copy-check-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .action-button.plugin:hover {
   background-color: var(--accent-soft);
   color: var(--accent);
