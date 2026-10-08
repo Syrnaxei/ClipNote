@@ -1,0 +1,90 @@
+.action-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 1200;
+  animation: sheet-backdrop-in 0.2s ease;
+}
+
+.action-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1201;
+  background-color: var(--bg);
+  border-radius: 16px 16px 0 0;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  animation: sheet-in 0.25s ease;
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.action-sheet-title {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-3);
+  padding: 4px 0 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-sheet-actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-action {
+  width: 100%;
+  text-align: left;
+  padding: 14px 4px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.sheet-action:last-child {
+  border-bottom: none;
+}
+
+.sheet-action.danger {
+  color: var(--error);
+}
+
+.action-sheet-cancel {
+  margin-top: 10px;
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  background-color: var(--surface-2);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* 动作面板内的删除确认浮层需盖过面板（面板 z-index 1201） */
+.action-sheet .popconfirm-popover {
+  z-index: 1250;
+}

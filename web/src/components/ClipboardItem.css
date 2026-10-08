@@ -137,6 +137,28 @@
   color: var(--accent);
 }
 
+html.mobile .clipboard-item-content {
+  padding-right: 52px;
+}
+
+html.mobile .clipboard-item-content .action-buttons {
+  opacity: 1;
+}
+
+html.mobile .action-buttons .action-button:not(.copy) {
+  display: none;
+}
+
+html.mobile .action-buttons .action-button.copy {
+  padding: 10px;
+}
+
+/* 抑制长按弹出的系统文本选择，长按留给动作面板；编辑态输入框不受影响 */
+html.mobile .content-text {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .clipboard-item-content.duplicate .action-buttons {
   background-color: var(--accent-soft);
 }

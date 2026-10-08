@@ -213,6 +213,19 @@
   transform: rotate(180deg);
 }
 
+html.mobile .list-footer {
+  gap: 0;
+}
+
+html.mobile .add-item-button,
+html.mobile .add-item-expand {
+  display: none;
+}
+
+html.mobile .add-item-input {
+  padding-right: 16px;
+}
+
 .duplicates-banner {
   display: flex;
   align-items: center;

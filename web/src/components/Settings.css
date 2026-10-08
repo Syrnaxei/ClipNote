@@ -9,6 +9,10 @@
   margin: 0 auto;
 }
 
+html.mobile .settings {
+  padding: 20px 16px;
+}
+
 .settings-back {
   display: inline-flex;
   align-items: center;

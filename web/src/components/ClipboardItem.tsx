@@ -1,9 +1,14 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ClipboardItem } from '../types';
 import { DEVICE_TYPES } from '../types';
 import type { ItemActionId, ItemActionSetting } from '../itemActions';
+import { isMobileDevice } from '../mobileDetect';
+import { createLongPressController } from '../longPress';
 import PopConfirm from './PopConfirm';
+import ActionSheet from './ActionSheet';
 import './ClipboardItem.css';
+
+const isMobile = isMobileDevice();
 
 const DEVICE_ICONS: Record<string, ReactNode> = {
   iPhone: (
@@ -78,10 +83,30 @@ function ClipboardItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(item.content);
   const [copied, setCopied] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const copyTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(copyTimerRef.current), []);
+
+  const longPress = useMemo(
+    () =>
+      isMobile
+        ? createLongPressController({ onLongPress: () => setSheetOpen(true) })
+        : null,
+    [],
+  );
+
+  const pressHandlers = longPress
+    ? {
+        onPointerDown: (e: React.PointerEvent) =>
+          longPress.down(e.clientX, e.clientY, e.pointerType),
+        onPointerMove: (e: React.PointerEvent) => longPress.move(e.clientX, e.clientY),
+        onPointerUp: longPress.up,
+        onPointerCancel: longPress.cancel,
+        onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+      }
+    : undefined;
 
   useEffect(() => {
     const el = editInputRef.current;
@@ -111,6 +136,14 @@ function ClipboardItem({
   const handleCancel = () => {
     setIsEditing(false);
     setEditContent(item.content);
+  };
+
+  const doCopy = async () => {
+    if (await onCopy(item.content)) {
+      setCopied(true);
+      window.clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = window.setTimeout(() => setCopied(false), 1500);
+    }
   };
 
   const visibleActions = itemActions.order.filter(
@@ -155,13 +188,7 @@ function ClipboardItem({
       case 'copy':
         return (
           <button
-            onClick={async () => {
-              if (await onCopy(item.content)) {
-                setCopied(true);
-                window.clearTimeout(copyTimerRef.current);
-                copyTimerRef.current = window.setTimeout(() => setCopied(false), 1500);
-              }
-            }}
+            onClick={doCopy}
             className={`action-button copy ${copied ? 'copied' : ''}`}
             title={copied ? '已复制' : '复制'}
           >
@@ -205,7 +232,7 @@ function ClipboardItem({
           </div>
         </div>
       ) : (
-        <div className="view-mode">
+        <div className="view-mode" {...pressHandlers}>
           <div className="item-body">
             <span className="content-text">{item.content}</span>
             <div className="item-meta">
@@ -241,6 +268,40 @@ function ClipboardItem({
           )}
         </div>
       )}
+      <ActionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={item.content}>
+        <button
+          className="sheet-action"
+          onClick={() => {
+            setSheetOpen(false);
+            doCopy();
+          }}
+        >
+          复制
+        </button>
+        <button
+          className="sheet-action"
+          onClick={() => {
+            setSheetOpen(false);
+            handleEdit();
+          }}
+        >
+          编辑
+        </button>
+        {pluginName && (
+          <button
+            className="sheet-action"
+            onClick={() => {
+              setSheetOpen(false);
+              onPlugin(item);
+            }}
+          >
+            插件：{pluginName}
+          </button>
+        )}
+        <PopConfirm title="确定删除这条内容吗？" onConfirm={() => onDelete(item.id)}>
+          <button className="sheet-action danger">删除</button>
+        </PopConfirm>
+      </ActionSheet>
     </div>
   );
 }

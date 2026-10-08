@@ -54,6 +54,11 @@
   color: var(--text);
 }
 
+html.mobile .header-icon-button {
+  width: 42px;
+  height: 42px;
+}
+
 .logo {
   display: flex;
   align-items: center;

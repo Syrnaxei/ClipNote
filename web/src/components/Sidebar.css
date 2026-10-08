@@ -303,3 +303,41 @@
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-card);
 }
+
+.sidebar-backdrop {
+  display: none;
+}
+
+html.mobile .app {
+  height: 100dvh;
+}
+
+html.mobile .sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(320px, 85vw);
+  z-index: 1050;
+  transform: translateX(0);
+  transition: transform 0.25s ease;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.25);
+}
+
+html.mobile .sidebar.collapsed {
+  width: min(320px, 85vw);
+  border-right-width: 1px;
+  transform: translateX(-105%);
+}
+
+html.mobile .sidebar-inner {
+  width: 100%;
+}
+
+html.mobile .sidebar-backdrop {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  background-color: rgba(0, 0, 0, 0.4);
+}

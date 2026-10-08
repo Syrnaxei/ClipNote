@@ -29,6 +29,11 @@
   animation: modal-card-in 0.18s ease;
 }
 
+html.mobile .modal-card {
+  max-width: calc(100vw - 24px);
+  padding: 20px;
+}
+
 @keyframes modal-card-in {
   from {
     opacity: 0;

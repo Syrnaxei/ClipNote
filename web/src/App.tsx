@@ -8,6 +8,7 @@ import PluginsView from './components/PluginsView';
 import { api, ApiKeyError, clearApiKey, getApiKey, hasApiKey, setApiKey } from './api';
 import { copyText } from './clipboard';
 import { connectWs } from './ws';
+import { isMobileDevice } from './mobileDetect';
 import { loadPinStyle, savePinStyle, type PinStyle } from './pinStyle';
 import {
   loadItemActions,
@@ -74,6 +75,7 @@ function App() {
   );
   const [view, setView] = useState<'main' | 'settings' | 'plugins'>('main');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile] = useState(isMobileDevice);
   const [clipboards, setClipboards] = useState<Clipboard[]>([]);
   const [itemsByClipboard, setItemsByClipboard] = useState<Record<number, ClipboardItem[]>>({});
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -88,6 +90,12 @@ function App() {
   const [connected, setConnected] = useState(false);
   const activeIdRef = useRef<number | null>(null);
   activeIdRef.current = activeId;
+
+  useEffect(() => {
+    if (isMobile) {
+      document.documentElement.classList.add('mobile');
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -376,8 +384,12 @@ function App() {
             activeId={activeId}
             collapsed={!sidebarOpen}
             pinStyle={pinStyle}
-            onSelectClipboard={setActiveId}
+            onSelectClipboard={(id) => {
+              setActiveId(id);
+              if (isMobile) setSidebarOpen(false);
+            }}
             onAddClipboard={handleAddClipboard}
+            onRequestClose={() => setSidebarOpen(false)}
           />
           <ClipboardList
             clipboard={clipboards.find((c) => c.id === activeId) ?? null}
