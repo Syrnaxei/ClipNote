@@ -74,8 +74,8 @@ function App() {
     () => localStorage.getItem(DEVICE_NAME_KEY) ?? '我的电脑',
   );
   const [view, setView] = useState<'main' | 'settings' | 'plugins'>('main');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile] = useState(isMobileDevice);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [clipboards, setClipboards] = useState<Clipboard[]>([]);
   const [itemsByClipboard, setItemsByClipboard] = useState<Record<number, ClipboardItem[]>>({});
   const [activeId, setActiveId] = useState<number | null>(null);
