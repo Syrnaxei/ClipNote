@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import type { Clipboard, ClipboardItem } from '../types';
-import { loadPinStyle, type PinStyle } from '../pinStyle';
 import '../components/Sidebar.css';
 import './ClipboardEditModal.css';
 import './ItemMoveModal.css';
@@ -13,7 +12,6 @@ interface ItemMoveModalProps {
 }
 
 function ItemMoveModal({ item, clipboards, onCancel, onMove }: ItemMoveModalProps) {
-  const [pinStyle] = useState<PinStyle>(loadPinStyle);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [moving, setMoving] = useState(false);
@@ -65,9 +63,7 @@ function ItemMoveModal({ item, clipboards, onCancel, onMove }: ItemMoveModalProp
           {targets.map((c) => (
             <div
               key={c.id}
-              className={`clipboard-card ${c.pinned ? `pin-${pinStyle}` : ''} ${
-                selectedId === c.id ? 'active' : ''
-              }`}
+              className={`clipboard-card ${selectedId === c.id ? 'active' : ''}`}
               onClick={() => {
                 setSelectedId(c.id);
                 setError('');
