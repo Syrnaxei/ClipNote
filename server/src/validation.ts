@@ -40,6 +40,10 @@ export const itemUpdateSchema = z
     message: 'At least one of content, original_content is required',
   });
 
+export const itemMoveSchema = z.object({
+  clipboard_id: z.coerce.number().int().positive(),
+});
+
 export const PLUGIN_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 export const PLUGIN_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 

@@ -205,6 +205,29 @@ function App() {
               };
             });
             break;
+          case 'item.moved': {
+            refreshAggregates();
+            const { item, fromClipboardId } = event.payload;
+            setItemsByClipboard((prev) => {
+              const next = { ...prev };
+              const from = next[fromClipboardId];
+              if (from) {
+                next[fromClipboardId] = from.filter((i) => i.id !== item.id);
+              }
+              const to = next[item.clipboard_id];
+              if (to && !to.some((i) => i.id === item.id)) {
+                const idx = to.findIndex((i) => i.created_at < item.created_at);
+                const insertAt = idx === -1 ? to.length : idx;
+                next[item.clipboard_id] = [
+                  ...to.slice(0, insertAt),
+                  item,
+                  ...to.slice(insertAt),
+                ];
+              }
+              return next;
+            });
+            break;
+          }
           case 'item.deleted': {
             refreshAggregates();
             const { id, clipboardId } = event.payload;
@@ -271,6 +294,14 @@ function App() {
   const handleEditItem = async (id: number, newContent: string) => {
     if (!newContent.trim()) return;
     await api.updateItem(id, newContent);
+  };
+
+  const handleMoveItem = async (id: number, targetClipboardId: number) => {
+    await api.moveItem(id, targetClipboardId);
+    const target = clipboards.find((c) => c.id === targetClipboardId);
+    if (target) {
+      showNotice({ text: `已转移到「${target.name}」` });
+    }
   };
 
   const handleCopyItem = async (content: string) => {
@@ -393,6 +424,7 @@ function App() {
           />
           <ClipboardList
             clipboard={clipboards.find((c) => c.id === activeId) ?? null}
+            clipboards={clipboards}
             items={activeItems ?? []}
             loading={activeId !== null && activeItems === undefined}
             dupGroups={dupGroups}
@@ -403,6 +435,7 @@ function App() {
               await api.deleteItem(id);
             }}
             onEditItem={handleEditItem}
+            onMoveItem={handleMoveItem}
             onCopyItem={handleCopyItem}
             onPluginApply={handlePluginApply}
             onCheckDuplicates={handleCheckDuplicates}

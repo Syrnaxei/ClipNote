@@ -5,6 +5,7 @@ import { ApiError } from '../auth.js';
 import {
   idParamSchema,
   itemCreateSchema,
+  itemMoveSchema,
   itemUpdateSchema,
   normalizeDevice,
 } from '../validation.js';
@@ -66,6 +67,26 @@ router.patch('/:id', (req, res) => {
   const updated = getItemOrThrow(id);
   res.json({ item: updated });
   broadcast('item.updated', updated);
+});
+
+router.post('/:id/move', (req, res) => {
+  const { id } = idParamSchema.parse(req.params);
+  const data = itemMoveSchema.parse(req.body);
+  const item = getItemOrThrow(id) as { clipboard_id: number };
+  const target = db
+    .prepare('SELECT id FROM clipboards WHERE id = ?')
+    .get(data.clipboard_id) as { id: number } | undefined;
+  if (!target) {
+    throw new ApiError(404, 'NOT_FOUND', 'Clipboard not found');
+  }
+  if (item.clipboard_id === target.id) {
+    throw new ApiError(400, 'SAME_CLIPBOARD', 'Item already belongs to this clipboard');
+  }
+  const fromClipboardId = item.clipboard_id;
+  db.prepare('UPDATE clipboard_items SET clipboard_id = ? WHERE id = ?').run(target.id, id);
+  const moved = getItemOrThrow(id);
+  res.json({ item: moved });
+  broadcast('item.moved', { item: moved, fromClipboardId });
 });
 
 router.delete('/:id', (req, res) => {

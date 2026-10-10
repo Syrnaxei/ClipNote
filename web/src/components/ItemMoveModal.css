@@ -1,0 +1,40 @@
+.move-preview {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.5;
+  word-break: break-word;
+  background-color: var(--surface-2);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.move-target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.move-target-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.move-target-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.move-target-list::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 3px;
+}
+
+.move-empty {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--text-3);
+  text-align: center;
+  padding: 12px 0;
+}

@@ -9,6 +9,7 @@ import './ClipboardList.css';
 
 interface ClipboardListProps {
   clipboard: Clipboard | null;
+  clipboards: Clipboard[];
   items: ClipboardItem[];
   loading: boolean;
   dupGroups: DuplicateGroup[] | null;
@@ -17,6 +18,7 @@ interface ClipboardListProps {
   onAddItem: (content: string) => void;
   onDeleteItem: (id: number) => void;
   onEditItem: (id: number, newContent: string) => void;
+  onMoveItem: (id: number, targetClipboardId: number) => Promise<void>;
   onCopyItem: (content: string) => Promise<boolean>;
   onPluginApply: (item: ClipboardItem, result: string, pluginName: string) => Promise<void>;
   onCheckDuplicates: () => void;
@@ -28,6 +30,7 @@ interface ClipboardListProps {
 
 function ClipboardList({
   clipboard,
+  clipboards,
   items,
   loading,
   dupGroups,
@@ -36,6 +39,7 @@ function ClipboardList({
   onAddItem,
   onDeleteItem,
   onEditItem,
+  onMoveItem,
   onCopyItem,
   onPluginApply,
   onCheckDuplicates,
@@ -197,8 +201,10 @@ function ClipboardList({
               duplicate={duplicateIds.has(item.id)}
               pluginName={activePlugin?.name ?? null}
               itemActions={itemActions}
+              clipboards={clipboards}
               onDelete={onDeleteItem}
               onEdit={onEditItem}
+              onMove={onMoveItem}
               onCopy={onCopyItem}
               onPlugin={setPluginTarget}
             />

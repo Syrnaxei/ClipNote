@@ -93,6 +93,11 @@ export const api = {
     }),
   deleteItem: (id: number) =>
     request<void>(`/api/items/${id}`, { method: 'DELETE' }),
+  moveItem: (id: number, clipboardId: number) =>
+    request<{ item: ClipboardItem }>(`/api/items/${id}/move`, {
+      method: 'POST',
+      body: JSON.stringify({ clipboard_id: clipboardId }),
+    }),
   duplicates: (clipboardId: number) =>
     request<{ groups: DuplicateGroup[] }>(`/api/clipboards/${clipboardId}/duplicates`),
   listPlugins: () => request<{ plugins: Plugin[] }>('/api/plugins'),

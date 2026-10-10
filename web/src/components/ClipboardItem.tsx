@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { ClipboardItem } from '../types';
+import type { Clipboard, ClipboardItem } from '../types';
 import { DEVICE_TYPES } from '../types';
 import type { ItemActionId, ItemActionSetting } from '../itemActions';
 import { isMobileDevice } from '../mobileDetect';
 import { createLongPressController } from '../longPress';
 import PopConfirm from './PopConfirm';
 import ActionSheet from './ActionSheet';
+import ItemMoveModal from './ItemMoveModal';
 import './ClipboardItem.css';
 
 const isMobile = isMobileDevice();
@@ -64,10 +65,12 @@ interface ClipboardItemProps {
   duplicate: boolean;
   pluginName: string | null;
   itemActions: ItemActionSetting;
+  clipboards: Clipboard[];
   onDelete: (id: number) => void;
   onEdit: (id: number, newContent: string) => void;
   onCopy: (content: string) => Promise<boolean>;
   onPlugin: (item: ClipboardItem) => void;
+  onMove: (id: number, targetClipboardId: number) => Promise<void>;
 }
 
 function ClipboardItem({
@@ -75,15 +78,18 @@ function ClipboardItem({
   duplicate,
   pluginName,
   itemActions,
+  clipboards,
   onDelete,
   onEdit,
   onCopy,
   onPlugin,
+  onMove,
 }: ClipboardItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(item.content);
   const [copied, setCopied] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const copyTimerRef = useRef<number | undefined>(undefined);
 
@@ -171,6 +177,20 @@ function ClipboardItem({
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+        );
+      case 'move':
+        return (
+          <button
+            onClick={() => setMoveOpen(true)}
+            className="action-button move"
+            title="转移到其他剪切板"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9l-2-3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
+              <polyline points="10 13 13 16 16 13"></polyline>
+              <line x1="13" y1="9" x2="13" y2="16"></line>
             </svg>
           </button>
         );
@@ -287,6 +307,15 @@ function ClipboardItem({
         >
           编辑
         </button>
+        <button
+          className="sheet-action"
+          onClick={() => {
+            setSheetOpen(false);
+            setMoveOpen(true);
+          }}
+        >
+          转移到…
+        </button>
         {pluginName && (
           <button
             className="sheet-action"
@@ -302,6 +331,17 @@ function ClipboardItem({
           <button className="sheet-action danger">删除</button>
         </PopConfirm>
       </ActionSheet>
+      {moveOpen && (
+        <ItemMoveModal
+          item={item}
+          clipboards={clipboards}
+          onCancel={() => setMoveOpen(false)}
+          onMove={async (targetId) => {
+            await onMove(item.id, targetId);
+            setMoveOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

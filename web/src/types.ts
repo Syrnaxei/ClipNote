@@ -53,4 +53,5 @@ export type WsEvent =
   | { type: 'clipboard.deleted'; payload: { id: number } }
   | { type: 'item.created'; payload: ClipboardItem }
   | { type: 'item.updated'; payload: ClipboardItem }
+  | { type: 'item.moved'; payload: { item: ClipboardItem; fromClipboardId: number } }
   | { type: 'item.deleted'; payload: { id: number; clipboardId: number } };
