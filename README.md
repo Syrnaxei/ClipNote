@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/ClipNote-mainpic.png" alt="ClipNote" width="620" />
+  <img src="assets/ClipNote-mainpic.png" alt="ClipNote" width="720" />
 </p>
 
 ---
