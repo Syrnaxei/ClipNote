@@ -41,6 +41,10 @@
   white-space: pre-wrap;
 }
 
+.content-text::selection {
+  background: rgba(217, 119, 87, 0.35);
+}
+
 .item-meta {
   display: flex;
   align-items: center;
