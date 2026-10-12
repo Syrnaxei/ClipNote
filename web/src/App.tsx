@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import ClipboardList from './components/ClipboardList';
 import Settings from './components/Settings';
 import PluginsView from './components/PluginsView';
+import SelectionToolbar from './components/SelectionToolbar';
 import { api, ApiKeyError, clearApiKey, getApiKey, hasApiKey, setApiKey } from './api';
 import { copyText } from './clipboard';
 import { connectWs } from './ws';
@@ -379,6 +380,7 @@ function App() {
 
   return (
     <div className="app">
+      <SelectionToolbar />
       <Header
         sidebarOpen={sidebarOpen}
         showSidebarToggle={view === 'main'}
