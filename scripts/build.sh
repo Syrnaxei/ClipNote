@@ -54,8 +54,8 @@ log "本步移动 $moved 个文件"
 # ---------------------------------------------------------------------------
 step "步骤 2/4:组装构建上下文(整体重建,保持幂等)"
 # ---------------------------------------------------------------------------
-rm -rf "$BUILD/server" "$BUILD/web" "$BUILD/caddy"
-mkdir -p "$BUILD/server" "$BUILD/web" "$BUILD/caddy"
+rm -rf "$BUILD/server" "$BUILD/web"
+mkdir -p "$BUILD/server" "$BUILD/web"
 
 copy_server=(.dockerignore Dockerfile package.json package-lock.json tsconfig.json)
 for f in "${copy_server[@]}"; do
@@ -76,14 +76,12 @@ log "  web/src/ ($(find "$ROOT/web/src" -type f | wc -l) 个文件)"
 cp -r "$ROOT/web/public" "$BUILD/web/public"
 log "  web/public/ ($(find "$ROOT/web/public" -type f | wc -l) 个文件)"
 
-cp "$ROOT/caddy/Caddyfile" "$BUILD/caddy/Caddyfile"
-log "  caddy/Caddyfile"
 cp "$ROOT/.env.example" "$BUILD/.env.example"
 log "  .env.example"
 
 # ---------------------------------------------------------------------------
-step "步骤 3/4:校验 compose 文件"
-#    脚本执行后 compose 文件以 build/ 为唯一存放处
+step "步骤 3/4:校验常驻配置"
+#    compose 文件与 caddy/Caddyfile 常驻 build/,脚本不覆盖,仅校验
 # ---------------------------------------------------------------------------
 missing=0
 for f in docker-compose.yml docker-compose.cn.yml; do
@@ -94,6 +92,12 @@ for f in docker-compose.yml docker-compose.cn.yml; do
         missing=$((missing + 1))
     fi
 done
+if [ -f "$BUILD/caddy/Caddyfile" ]; then
+    log "  就绪:build/caddy/Caddyfile"
+else
+    log "  警告:缺少 $BUILD/caddy/Caddyfile"
+    missing=$((missing + 1))
+fi
 if [ "$missing" -gt 0 ]; then
     log "错误:缺失 $missing 个 compose 文件,请检查"
     exit 1
