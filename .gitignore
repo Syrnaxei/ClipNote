@@ -24,6 +24,7 @@ Thumbs.db
 
 # local tool settings
 .claude/
+/.idea/
 
 # preview prototype (superseded by web/, contains its own nested .git)
 Preview/
