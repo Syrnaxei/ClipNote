@@ -10,6 +10,19 @@ interface ToolbarState {
   top: number;
   left: number;
   text: string;
+  url: string | null;
+}
+
+function extractUrl(text: string): string | null {
+  const first = text.trim().split(/\s+/)[0] ?? '';
+  if (!/^https?:\/\//i.test(first)) return null;
+  try {
+    const url = new URL(first);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;
+  } catch {
+    // 非法 URL 则不提供跳转
+  }
+  return null;
 }
 
 function selectionInItemBody(sel: Selection): boolean {
@@ -24,7 +37,8 @@ function computePosition(sel: Selection): ToolbarState | null {
   const text = sel.toString();
   if (!text.trim()) return null;
 
-  const toolbarWidth = 110;
+  const url = extractUrl(text);
+  const toolbarWidth = url ? 220 : 110;
   const toolbarHeight = 36;
   const gap = 8;
   const left = Math.min(
@@ -34,7 +48,7 @@ function computePosition(sel: Selection): ToolbarState | null {
   const below = rect.bottom + gap;
   const above = rect.top - gap - toolbarHeight;
   const top = above >= 0 ? above : below;
-  return { top, left, text };
+  return { top, left, text, url };
 }
 
 function SelectionToolbar() {
@@ -102,6 +116,12 @@ function SelectionToolbar() {
     }
   };
 
+  const handleOpen = () => {
+    if (!state.url) return;
+    window.open(state.url, '_blank', 'noopener,noreferrer');
+    setState(null);
+  };
+
   return (
     <div
       className="selection-toolbar"
@@ -122,6 +142,16 @@ function SelectionToolbar() {
         )}
         <span>{copied ? '已复制' : '复制文本'}</span>
       </button>
+      {state.url && (
+        <button className="selection-toolbar-button" onClick={handleOpen}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+          <span>跳转到网页</span>
+        </button>
+      )}
     </div>
   );
 }

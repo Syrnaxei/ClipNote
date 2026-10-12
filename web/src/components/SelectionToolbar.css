@@ -6,6 +6,9 @@
   border-radius: 10px;
   padding: 6px 10px;
   box-shadow: var(--whisper);
+  display: flex;
+  align-items: center;
+  gap: 2px;
   animation: selection-toolbar-in 0.12s ease-out;
 }
 
