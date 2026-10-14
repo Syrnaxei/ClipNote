@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -18,6 +18,7 @@ import {
 } from './itemActions';
 import type { Clipboard, ClipboardItem, DuplicateGroup, Plugin, WsEvent } from './types';
 import { migrateStorageKey } from './storage';
+import { loadTrustedKeys, trustKeyOf } from './plugins/trust';
 
 type Theme = 'light' | 'dark';
 
@@ -83,6 +84,7 @@ function App() {
   const [dupGroups, setDupGroups] = useState<DuplicateGroup[] | null>(null);
   const [activePlugin, setActivePlugin] = useState<Plugin | null>(null);
   const [toolbarPlugins, setToolbarPlugins] = useState<Plugin[]>([]);
+  const [trustedKeys, setTrustedKeys] = useState<string[]>(() => loadTrustedKeys());
   const [notice, setNotice] = useState<{
     text: string;
     actionLabel?: string;
@@ -385,9 +387,14 @@ function App() {
     );
   }
 
+  const usableToolbarPlugins = useMemo(
+    () => toolbarPlugins.filter((p) => trustedKeys.includes(trustKeyOf(p))),
+    [toolbarPlugins, trustedKeys],
+  );
+
   return (
     <div className="app">
-      <SelectionToolbar plugins={toolbarPlugins} onNotice={showNotice} />
+      <SelectionToolbar plugins={usableToolbarPlugins} onNotice={showNotice} />
       <Header
         sidebarOpen={sidebarOpen}
         showSidebarToggle={view === 'main'}
@@ -416,7 +423,11 @@ function App() {
           }}
         />
       ) : view === 'plugins' ? (
-        <PluginsView onBack={() => setView('main')} />
+        <PluginsView
+          onBack={() => setView('main')}
+          trustedKeys={trustedKeys}
+          onTrustChange={setTrustedKeys}
+        />
       ) : (
         <div className="main-container">
           <Sidebar

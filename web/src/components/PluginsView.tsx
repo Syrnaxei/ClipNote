@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import './PluginsView.css';
 import PopConfirm from './PopConfirm';
+import PluginTrustModal from './PluginTrustModal';
 import { api } from '../api';
 import { parseCvt, CvtParseError } from '../plugins/parseCvt';
+import { setSkipTrustConfirm, shouldSkipTrustConfirm, trustKeyOf } from '../plugins/trust';
 import type { Plugin } from '../types';
 
 interface PluginsViewProps {
   onBack: () => void;
+  trustedKeys: string[];
+  onTrustChange: (keys: string[]) => void;
 }
 
 function PluginAvatar({ plugin }: { plugin: Plugin }) {
@@ -42,17 +46,35 @@ const PLUGIN_SECTIONS = [
     type: 'selection-toolbar' as const,
     label: '文本选择工具栏插件',
     desc: '选中文本时按正则匹配显示按钮',
-    switchHint: '启用后选中文本时若匹配其正则，按钮将出现在文本选择工具栏',
+    switchHint: '启用并信任后，选中文本匹配其正则时按钮将出现在文本选择工具栏',
   },
 ];
 
-function PluginsView({ onBack }: PluginsViewProps) {
+function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [trusting, setTrusting] = useState<Plugin | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const isTrusted = (p: Plugin) => trustedKeys.includes(trustKeyOf(p));
+
+  const requestTrust = (plugin: Plugin) => {
+    if (shouldSkipTrustConfirm()) {
+      onTrustChange([...trustedKeys, trustKeyOf(plugin)]);
+    } else {
+      setTrusting(plugin);
+    }
+  };
+
+  const handleTrustConfirm = (skipConfirm: boolean) => {
+    if (!trusting) return;
+    if (skipConfirm) setSkipTrustConfirm(true);
+    onTrustChange([...trustedKeys, trustKeyOf(trusting)]);
+    setTrusting(null);
+  };
 
   useEffect(() => {
     api
@@ -205,6 +227,9 @@ function PluginsView({ onBack }: PluginsViewProps) {
                         <span className="plugins-master-name">
                           {p.name}
                           {p.enabled && <span className="plugins-tag">启用中</span>}
+                          {p.type === 'selection-toolbar' && !isTrusted(p) && (
+                            <span className="plugins-tag plugins-tag-warn">未信任</span>
+                          )}
                         </span>
                         <span className="plugins-master-desc">{p.description}</span>
                         <span className="plugins-master-meta">
@@ -263,6 +288,32 @@ function PluginsView({ onBack }: PluginsViewProps) {
                     </div>
                   )}
 
+                  {selected.type === 'selection-toolbar' && (
+                    <>
+                      <div className="plugins-divider" />
+
+                      <div className="plugins-switch-row">
+                        <div>
+                          <span className="plugins-switch-label">信任该插件</span>
+                          <span className="plugins-switch-hint">
+                            免沙箱插件需逐个确认风险后才会出现在文本选择工具栏；插件更新版本后需重新信任
+                          </span>
+                        </div>
+                        {isTrusted(selected) ? (
+                          <span className="plugins-tag">已信任</span>
+                        ) : (
+                          <button
+                            className="plugins-trust-button"
+                            disabled={busy}
+                            onClick={() => requestTrust(selected)}
+                          >
+                            信任该插件
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+
                   <div className="plugins-divider" />
 
                   <div className="plugins-switch-row">
@@ -305,6 +356,14 @@ function PluginsView({ onBack }: PluginsViewProps) {
           </div>
         </div>
       </div>
+
+      {trusting && (
+        <PluginTrustModal
+          plugin={trusting}
+          onConfirm={handleTrustConfirm}
+          onCancel={() => setTrusting(null)}
+        />
+      )}
     </div>
   );
 }

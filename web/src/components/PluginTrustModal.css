@@ -1,0 +1,58 @@
+.plugin-trust-card {
+  max-width: 480px;
+}
+
+.plugin-trust-intro {
+  margin: 14px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-2);
+}
+
+.plugin-trust-risks {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--text-2);
+}
+
+.plugin-trust-risks strong {
+  color: var(--text);
+}
+
+.plugin-trust-warning {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--error);
+  border-radius: 8px;
+  color: var(--error);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.plugin-trust-skip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.plugin-trust-skip input {
+  accent-color: var(--accent);
+}
+
+.plugin-trust-confirm {
+  background-color: var(--error);
+  color: var(--on-accent);
+  border: none;
+}
+
+.plugin-trust-confirm:hover {
+  background-color: var(--error);
+  opacity: 0.9;
+}
