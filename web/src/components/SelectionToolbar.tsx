@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { copyText } from '../clipboard';
 import { isMobileDevice } from '../mobileDetect';
 import {
-  matchToolbarPlugins,
+  matchToolbarPluginsAsync,
   toToolbarPlugins,
   type ToolbarPlugin,
 } from '../plugins/matchToolbarPlugins';
@@ -29,6 +29,7 @@ interface ToolbarState {
   left: number;
   text: string;
   url: string | null;
+  matched: ToolbarPlugin[];
 }
 
 function extractUrl(text: string): string | null {
@@ -49,7 +50,10 @@ function selectionInItemBody(sel: Selection): boolean {
   return !!node && !!(node.parentElement?.closest('.content-text'));
 }
 
-function computePosition(sel: Selection, toolbarWidth: number): ToolbarState | null {
+function computePosition(
+  sel: Selection,
+  toolbarWidth: number,
+): Pick<ToolbarState, 'top' | 'left' | 'text' | 'url'> | null {
   const range = sel.getRangeAt(0);
   const rect = range.getBoundingClientRect();
   const text = sel.toString();
@@ -74,12 +78,9 @@ function SelectionToolbar({ plugins, onNotice }: SelectionToolbarProps) {
   const [runningId, setRunningId] = useState<string | null>(null);
   const showTimerRef = useRef<number | undefined>(undefined);
   const hideTimerRef = useRef<number | undefined>(undefined);
+  const matchSeqRef = useRef(0);
   const pluginsRef = useRef<Plugin[]>(plugins);
   pluginsRef.current = plugins;
-
-  const matchedPlugins: ToolbarPlugin[] = state
-    ? matchToolbarPlugins(state.text, toToolbarPlugins(plugins))
-    : [];
 
   useEffect(() => {
     if (isMobileDevice()) return;
@@ -91,23 +92,33 @@ function SelectionToolbar({ plugins, onNotice }: SelectionToolbarProps) {
       window.clearTimeout(hideTimerRef.current);
       setCopied(false);
       setState(null);
-      showTimerRef.current = window.setTimeout(() => {
+      showTimerRef.current = window.setTimeout(async () => {
         const sel = window.getSelection();
         if (!sel || !selectionInItemBody(sel)) return;
         const selText = sel.toString();
-        const matched = matchToolbarPlugins(
-          selText,
-          toToolbarPlugins(pluginsRef.current),
-        );
+        const seq = ++matchSeqRef.current;
+        let matched: ToolbarPlugin[] = [];
+        try {
+          matched = await matchToolbarPluginsAsync(
+            selText,
+            toToolbarPlugins(pluginsRef.current),
+          );
+        } catch {
+          matched = [];
+        }
+        if (seq !== matchSeqRef.current) return;
+        const cur = window.getSelection();
+        if (!cur || !selectionInItemBody(cur) || cur.toString() !== selText) return;
         const labels = ['复制文本', ...(extractUrl(selText) ? ['跳转到网页'] : []), ...matched.map((p) => p.buttonName)];
         const width = labels.reduce((sum, label) => sum + estimateButtonWidth(label), 0);
-        const pos = computePosition(sel, width);
-        if (pos) setState(pos);
+        const pos = computePosition(cur, width);
+        if (pos) setState({ ...pos, matched });
       }, SHOW_DELAY_MS);
     };
 
     const hide = () => {
       clearShowTimer();
+      matchSeqRef.current += 1;
       setState(null);
     };
 
@@ -204,7 +215,7 @@ function SelectionToolbar({ plugins, onNotice }: SelectionToolbarProps) {
           <span>跳转到网页</span>
         </button>
       )}
-      {matchedPlugins.map((plugin) => (
+      {state.matched.map((plugin) => (
         <button
           key={plugin.id}
           className="selection-toolbar-button"
