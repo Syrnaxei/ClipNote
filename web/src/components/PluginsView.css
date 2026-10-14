@@ -110,6 +110,61 @@ html.mobile .plugins {
   gap: 8px;
 }
 
+.plugins-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plugins-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 4px 0;
+}
+
+.plugins-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.plugins-section-desc {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.plugins-toolbar-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: var(--surface);
+}
+
+.plugins-toolbar-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text);
+  min-width: 0;
+}
+
+.plugins-toolbar-meta-label {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.plugins-toolbar-regex {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .plugins-master-item {
   display: flex;
   flex-direction: column;

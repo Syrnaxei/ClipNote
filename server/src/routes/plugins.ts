@@ -6,7 +6,7 @@ import { pluginSlugParamSchema, pluginCreateSchema, pluginUpdateSchema } from '.
 const router = Router();
 
 const PLUGIN_FIELDS =
-  'slug AS id, name, author, version, description, github_url, code, enabled, created_at';
+  'slug AS id, name, author, version, description, github_url, code, type, regex, button_name, enabled, created_at';
 
 interface PluginRow {
   enabled: number;
@@ -39,12 +39,12 @@ router.post('/', (req, res) => {
   const data = pluginCreateSchema.parse(req.body);
   const githubUrl = data.github_url ?? null;
   const enabled = data.enabled === true ? 1 : 0;
-  if (enabled) {
-    db.exec('UPDATE plugins SET enabled = 0');
+  if (enabled && (data.type ?? 'text-transform') === 'text-transform') {
+    db.prepare("UPDATE plugins SET enabled = 0 WHERE type = 'text-transform'").run();
   }
   db.prepare(
-    `INSERT INTO plugins (slug, name, author, version, description, github_url, code, enabled)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO plugins (slug, name, author, version, description, github_url, code, type, regex, button_name, enabled)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(slug) DO UPDATE SET
        name = excluded.name,
        author = excluded.author,
@@ -52,6 +52,9 @@ router.post('/', (req, res) => {
        description = excluded.description,
        github_url = excluded.github_url,
        code = excluded.code,
+       type = excluded.type,
+       regex = excluded.regex,
+       button_name = excluded.button_name,
        enabled = excluded.enabled`,
   ).run(
     data.id,
@@ -61,6 +64,9 @@ router.post('/', (req, res) => {
     data.description,
     githubUrl,
     data.code,
+    data.type ?? 'text-transform',
+    data.regex ?? null,
+    data.button_name ?? null,
     enabled,
   );
   const plugin = db
@@ -74,11 +80,12 @@ router.patch('/:id', (req, res) => {
   const data = pluginUpdateSchema.parse(req.body);
   const existing = getPluginOrThrow(id);
   const enabled = data.enabled === undefined ? (existing.enabled as number) : data.enabled ? 1 : 0;
-  if (data.enabled === true) {
-    db.exec('UPDATE plugins SET enabled = 0');
+  const type = data.type ?? (existing.type as string) ?? 'text-transform';
+  if (data.enabled === true && type === 'text-transform') {
+    db.prepare("UPDATE plugins SET enabled = 0 WHERE type = 'text-transform'").run();
   }
   db.prepare(
-    `UPDATE plugins SET name = ?, author = ?, version = ?, description = ?, github_url = ?, code = ?, enabled = ? WHERE slug = ?`,
+    `UPDATE plugins SET name = ?, author = ?, version = ?, description = ?, github_url = ?, code = ?, type = ?, regex = ?, button_name = ?, enabled = ? WHERE slug = ?`,
   ).run(
     data.name ?? (existing.name as string),
     data.author ?? (existing.author as string),
@@ -90,6 +97,11 @@ router.patch('/:id', (req, res) => {
         ? null
         : data.github_url,
     data.code ?? (existing.code as string),
+    type,
+    data.regex === undefined ? (existing.regex as string | null) : (data.regex ?? null),
+    data.button_name === undefined
+      ? (existing.button_name as string | null)
+      : (data.button_name ?? null),
     enabled,
     id,
   );

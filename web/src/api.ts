@@ -109,6 +109,9 @@ export const api = {
     description: string;
     github_url?: string | null;
     code: string;
+    type?: string;
+    regex?: string;
+    button_name?: string;
   }) =>
     request<{ plugin: Plugin }>('/api/plugins', {
       method: 'POST',
@@ -124,6 +127,9 @@ export const api = {
       github_url?: string | null;
       code?: string;
       enabled?: boolean;
+      type?: string;
+      regex?: string;
+      button_name?: string;
     },
   ) =>
     request<{ plugin: Plugin }>(`/api/plugins/${id}`, {

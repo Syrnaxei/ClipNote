@@ -1,3 +1,5 @@
+export type PluginType = 'text-transform' | 'selection-toolbar';
+
 export interface CvtMeta {
   id: string;
   name: string;
@@ -5,12 +7,17 @@ export interface CvtMeta {
   version: string;
   description: string;
   github_url: string | null;
+  type: PluginType;
 }
 
 export interface CvtPlugin {
   meta: CvtMeta;
   code: string;
+  regex?: string;
+  buttonName?: string;
 }
+
+export const PLUGIN_TYPES: readonly PluginType[] = ['text-transform', 'selection-toolbar'];
 
 export class CvtParseError extends Error {}
 
@@ -67,6 +74,13 @@ export function parseCvt(source: string): CvtPlugin {
   if (!SLUG_RE.test(id)) {
     throw new CvtParseError('id 须为小写字母、数字与短横线组成的 slug（如 my-upper-case）');
   }
+  const type =
+    raw.type === undefined
+      ? 'text-transform'
+      : requireString(raw.type, 'type', 1, 40) as PluginType;
+  if (!PLUGIN_TYPES.includes(type)) {
+    throw new CvtParseError(`未知的插件类型: ${type}`);
+  }
   const meta: CvtMeta = {
     id,
     name: requireString(raw.name, 'name', 1, 100),
@@ -74,9 +88,21 @@ export function parseCvt(source: string): CvtPlugin {
     version: requireString(raw.version, 'version', 1, 20),
     description: requireString(raw.description, 'description', 1, 1000),
     github_url: parseGithubUrl(raw.github_url),
+    type,
   };
   if (!VERSION_RE.test(meta.version)) {
     throw new CvtParseError('version 须为 x.y.z 格式');
+  }
+  let regex: string | undefined;
+  let buttonName: string | undefined;
+  if (type === 'selection-toolbar') {
+    regex = requireString(raw.regex, 'regex', 1, 500);
+    try {
+      new RegExp(regex);
+    } catch {
+      throw new CvtParseError('regex 不是合法的正则表达式');
+    }
+    buttonName = requireString(raw.button_name, 'button_name', 1, 8);
   }
   const code = source.slice(match.index + match[0].length).trim();
   if (!code) {
@@ -85,5 +111,5 @@ export function parseCvt(source: string): CvtPlugin {
   if (!/\bfunction\s+process\s*\(/.test(code)) {
     throw new CvtParseError('插件代码缺少 process(input) 函数');
   }
-  return { meta, code };
+  return { meta, code, regex, buttonName };
 }

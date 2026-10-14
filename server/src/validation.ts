@@ -83,10 +83,36 @@ export const pluginMetaSchema = z.object({
   github_url: pluginGithubUrlSchema.optional(),
 });
 
-export const pluginCreateSchema = pluginMetaSchema.extend({
-  code: z.string().min(1).max(1_048_576),
-  enabled: z.boolean().optional(),
-});
+export const PLUGIN_TYPES = ['text-transform', 'selection-toolbar'] as const;
+export type PluginType = (typeof PLUGIN_TYPES)[number];
+
+const pluginTypeSchema = z.enum(PLUGIN_TYPES).optional();
+
+function isValidRegExp(regex: string): boolean {
+  try {
+    new RegExp(regex);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const pluginCreateSchema = pluginMetaSchema
+  .extend({
+    code: z.string().min(1).max(1_048_576),
+    enabled: z.boolean().optional(),
+    type: pluginTypeSchema,
+    regex: z.string().trim().min(1).max(500).optional(),
+    button_name: z.string().trim().min(1).max(8).optional(),
+  })
+  .refine(
+    (v) => (v.type ?? 'text-transform') !== 'selection-toolbar' || (!!v.regex && !!v.button_name),
+    { message: 'selection-toolbar plugins require regex and button_name', path: ['regex'] },
+  )
+  .refine((v) => v.regex === undefined || isValidRegExp(v.regex), {
+    message: 'regex is not a valid regular expression',
+    path: ['regex'],
+  });
 
 export const pluginUpdateSchema = z
   .object({
@@ -97,6 +123,9 @@ export const pluginUpdateSchema = z
     github_url: z.union([pluginGithubUrlSchema, z.null()]).optional(),
     code: z.string().min(1).max(1_048_576).optional(),
     enabled: z.boolean().optional(),
+    type: pluginTypeSchema,
+    regex: z.string().trim().min(1).max(500).optional(),
+    button_name: z.string().trim().min(1).max(8).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' });
 

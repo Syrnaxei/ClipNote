@@ -31,6 +31,21 @@ const GITHUB_MARK = (
   </svg>
 );
 
+const PLUGIN_SECTIONS = [
+  {
+    type: 'text-transform' as const,
+    label: '文本处理插件',
+    desc: '条目按钮执行，文本进文本出',
+    switchHint: '启用后主界面条目显示插件按钮，再次点击恢复未启用状态',
+  },
+  {
+    type: 'selection-toolbar' as const,
+    label: '文本选择工具栏插件',
+    desc: '选中文本时按正则匹配显示按钮',
+    switchHint: '启用后选中文本时若匹配其正则，按钮将出现在文本选择工具栏',
+  },
+];
+
 function PluginsView({ onBack }: PluginsViewProps) {
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -67,8 +82,12 @@ function PluginsView({ onBack }: PluginsViewProps) {
     setBusy(true);
     try {
       const text = await file.text();
-      const { meta, code } = parseCvt(text);
-      const { plugin } = await api.createPlugin({ ...meta, code });
+      const { meta, code, regex, buttonName } = parseCvt(text);
+      const { plugin } = await api.createPlugin({
+        ...meta,
+        ...(regex !== undefined && buttonName !== undefined ? { regex, button_name: buttonName } : {}),
+        code,
+      });
       await reload(plugin.id);
     } catch (e) {
       setError(
@@ -127,7 +146,7 @@ function PluginsView({ onBack }: PluginsViewProps) {
           <div>
             <h1 className="plugins-title">插件管理</h1>
             <p className="plugins-sub">
-              {loaded ? `${plugins.length} 个插件 · 条目按钮执行当前启用的插件` : '加载中...'}
+              {loaded ? `${plugins.length} 个插件 · 按类型分区，启用后分别作用于条目与选区工具栏` : '加载中...'}
             </p>
           </div>
           <button
@@ -168,24 +187,36 @@ function PluginsView({ onBack }: PluginsViewProps) {
                 <p>点击右上角导入 .CVT 插件开始使用</p>
               </div>
             ) : (
-              plugins.map((p) => (
-                <button
-                  key={p.id}
-                  className={`plugins-master-item ${p.id === selectedId ? 'selected' : ''}`}
-                  onClick={() => setSelectedId(p.id)}
-                >
-                  <span className="plugins-master-name">
-                    {p.name}
-                    {p.enabled && <span className="plugins-tag">启用中</span>}
-                  </span>
-                  <span className="plugins-master-desc">{p.description}</span>
-                  <span className="plugins-master-meta">
-                    <span className={`plugins-dot ${p.enabled ? 'on' : 'off'}`} />
-                    <span>v{p.version}</span>
-                    <span>{p.author}</span>
-                  </span>
-                </button>
-              ))
+              PLUGIN_SECTIONS.map((section) => {
+                const list = plugins.filter((p) => p.type === section.type);
+                if (list.length === 0) return null;
+                return (
+                  <div key={section.type} className="plugins-section">
+                    <div className="plugins-section-head">
+                      <span className="plugins-section-label">{section.label}</span>
+                      <span className="plugins-section-desc">{section.desc}</span>
+                    </div>
+                    {list.map((p) => (
+                      <button
+                        key={p.id}
+                        className={`plugins-master-item ${p.id === selectedId ? 'selected' : ''}`}
+                        onClick={() => setSelectedId(p.id)}
+                      >
+                        <span className="plugins-master-name">
+                          {p.name}
+                          {p.enabled && <span className="plugins-tag">启用中</span>}
+                        </span>
+                        <span className="plugins-master-desc">{p.description}</span>
+                        <span className="plugins-master-meta">
+                          <span className={`plugins-dot ${p.enabled ? 'on' : 'off'}`} />
+                          <span>v{p.version}</span>
+                          <span>{p.author}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })
             )}
           </div>
 
@@ -219,13 +250,26 @@ function PluginsView({ onBack }: PluginsViewProps) {
 
                   <p className="plugins-description">{selected.description}</p>
 
+                  {selected.type === 'selection-toolbar' && (
+                    <div className="plugins-toolbar-meta">
+                      <div className="plugins-toolbar-meta-row">
+                        <span className="plugins-toolbar-meta-label">按钮名称</span>
+                        <span>{selected.button_name}</span>
+                      </div>
+                      <div className="plugins-toolbar-meta-row">
+                        <span className="plugins-toolbar-meta-label">匹配正则</span>
+                        <code className="plugins-toolbar-regex">{selected.regex}</code>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="plugins-divider" />
 
                   <div className="plugins-switch-row">
                     <div>
                       <span className="plugins-switch-label">启用插件</span>
                       <span className="plugins-switch-hint">
-                        启用后主界面条目显示插件按钮，再次点击恢复未启用状态
+                        {PLUGIN_SECTIONS.find((s) => s.type === selected.type)?.switchHint}
                       </span>
                     </div>
                     <button

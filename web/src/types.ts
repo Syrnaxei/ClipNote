@@ -30,6 +30,8 @@ export interface ClipboardItem {
   created_at: string;
 }
 
+export type PluginType = 'text-transform' | 'selection-toolbar';
+
 export interface Plugin {
   id: string;
   name: string;
@@ -38,6 +40,9 @@ export interface Plugin {
   description: string;
   github_url: string | null;
   code: string;
+  type: PluginType;
+  regex: string | null;
+  button_name: string | null;
   enabled: boolean;
   created_at: string;
 }

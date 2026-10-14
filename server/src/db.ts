@@ -90,10 +90,22 @@ db.exec(`
     description TEXT    NOT NULL,
     github_url  TEXT,
     code        TEXT    NOT NULL,
+    type        TEXT    NOT NULL DEFAULT 'text-transform',
+    regex       TEXT,
+    button_name TEXT,
     enabled     INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
   );
 `);
+
+const currentPluginColumns = db.pragma('table_info(plugins)') as { name: string }[];
+if (currentPluginColumns.length > 0 && !currentPluginColumns.some((c) => c.name === 'type')) {
+  db.exec(
+    `ALTER TABLE plugins ADD COLUMN type TEXT NOT NULL DEFAULT 'text-transform';
+     ALTER TABLE plugins ADD COLUMN regex TEXT;
+     ALTER TABLE plugins ADD COLUMN button_name TEXT;`,
+  );
+}
 
 const legacyPluginColumns = (
   db.pragma('table_info(plugins_legacy)') as { name: string }[]

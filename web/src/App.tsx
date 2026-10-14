@@ -82,6 +82,7 @@ function App() {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [dupGroups, setDupGroups] = useState<DuplicateGroup[] | null>(null);
   const [activePlugin, setActivePlugin] = useState<Plugin | null>(null);
+  const [toolbarPlugins, setToolbarPlugins] = useState<Plugin[]>([]);
   const [notice, setNotice] = useState<{
     text: string;
     actionLabel?: string;
@@ -314,9 +315,15 @@ function App() {
   const refreshActivePlugin = useCallback(async () => {
     try {
       const { plugins } = await api.listPlugins();
-      setActivePlugin(plugins.find((p) => p.enabled) ?? null);
+      setActivePlugin(
+        plugins.find((p) => p.enabled && p.type === 'text-transform') ?? null,
+      );
+      setToolbarPlugins(
+        plugins.filter((p) => p.enabled && p.type === 'selection-toolbar'),
+      );
     } catch {
       setActivePlugin(null);
+      setToolbarPlugins([]);
     }
   }, []);
 
@@ -380,7 +387,7 @@ function App() {
 
   return (
     <div className="app">
-      <SelectionToolbar />
+      <SelectionToolbar plugins={toolbarPlugins} onNotice={showNotice} />
       <Header
         sidebarOpen={sidebarOpen}
         showSidebarToggle={view === 'main'}

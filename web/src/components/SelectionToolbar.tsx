@@ -1,10 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import { copyText } from '../clipboard';
 import { isMobileDevice } from '../mobileDetect';
+import {
+  matchToolbarPlugins,
+  toToolbarPlugins,
+  type ToolbarPlugin,
+} from '../plugins/matchToolbarPlugins';
+import { runToolbarPlugin } from '../plugins/runToolbarPlugin';
+import type { Plugin } from '../types';
 import './SelectionToolbar.css';
 
 const SHOW_DELAY_MS = 800;
 const COPIED_FEEDBACK_MS = 1200;
+const BUTTON_BASE_WIDTH = 40;
+const BUTTON_CHAR_WIDTH = 13;
+
+function estimateButtonWidth(label: string): number {
+  return BUTTON_BASE_WIDTH + label.length * BUTTON_CHAR_WIDTH;
+}
+
+interface SelectionToolbarProps {
+  plugins: Plugin[];
+  onNotice: (n: { text: string }) => void;
+}
 
 interface ToolbarState {
   top: number;
@@ -31,14 +49,13 @@ function selectionInItemBody(sel: Selection): boolean {
   return !!node && !!(node.parentElement?.closest('.content-text'));
 }
 
-function computePosition(sel: Selection): ToolbarState | null {
+function computePosition(sel: Selection, toolbarWidth: number): ToolbarState | null {
   const range = sel.getRangeAt(0);
   const rect = range.getBoundingClientRect();
   const text = sel.toString();
   if (!text.trim()) return null;
 
   const url = extractUrl(text);
-  const toolbarWidth = url ? 220 : 110;
   const toolbarHeight = 36;
   const gap = 8;
   const left = Math.min(
@@ -51,11 +68,18 @@ function computePosition(sel: Selection): ToolbarState | null {
   return { top, left, text, url };
 }
 
-function SelectionToolbar() {
+function SelectionToolbar({ plugins, onNotice }: SelectionToolbarProps) {
   const [state, setState] = useState<ToolbarState | null>(null);
   const [copied, setCopied] = useState(false);
+  const [runningId, setRunningId] = useState<string | null>(null);
   const showTimerRef = useRef<number | undefined>(undefined);
   const hideTimerRef = useRef<number | undefined>(undefined);
+  const pluginsRef = useRef<Plugin[]>(plugins);
+  pluginsRef.current = plugins;
+
+  const matchedPlugins: ToolbarPlugin[] = state
+    ? matchToolbarPlugins(state.text, toToolbarPlugins(plugins))
+    : [];
 
   useEffect(() => {
     if (isMobileDevice()) return;
@@ -70,7 +94,14 @@ function SelectionToolbar() {
       showTimerRef.current = window.setTimeout(() => {
         const sel = window.getSelection();
         if (!sel || !selectionInItemBody(sel)) return;
-        const pos = computePosition(sel);
+        const selText = sel.toString();
+        const matched = matchToolbarPlugins(
+          selText,
+          toToolbarPlugins(pluginsRef.current),
+        );
+        const labels = ['复制文本', ...(extractUrl(selText) ? ['跳转到网页'] : []), ...matched.map((p) => p.buttonName)];
+        const width = labels.reduce((sum, label) => sum + estimateButtonWidth(label), 0);
+        const pos = computePosition(sel, width);
         if (pos) setState(pos);
       }, SHOW_DELAY_MS);
     };
@@ -122,6 +153,27 @@ function SelectionToolbar() {
     setState(null);
   };
 
+  const handleRunPlugin = async (plugin: ToolbarPlugin) => {
+    if (!state || runningId) return;
+    setRunningId(plugin.id);
+    setState(null);
+    const input = state.text;
+    try {
+      const message = await runToolbarPlugin(
+        plugins.find((p) => p.id === plugin.id)?.code ?? '',
+        input,
+      );
+      onNotice({ text: message ?? `已执行「${plugin.buttonName}」` });
+    } catch (err) {
+      const detail = err instanceof Error && err.message ? err.message : '';
+      onNotice({
+        text: detail ? `「${plugin.buttonName}」执行失败：${detail}` : `「${plugin.buttonName}」执行失败`,
+      });
+    } finally {
+      setRunningId(null);
+    }
+  };
+
   return (
     <div
       className="selection-toolbar"
@@ -152,6 +204,19 @@ function SelectionToolbar() {
           <span>跳转到网页</span>
         </button>
       )}
+      {matchedPlugins.map((plugin) => (
+        <button
+          key={plugin.id}
+          className="selection-toolbar-button"
+          onClick={() => handleRunPlugin(plugin)}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          <span>{plugin.buttonName}</span>
+        </button>
+      ))}
     </div>
   );
 }
