@@ -4,15 +4,14 @@
 
 .plugin-trust-head {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 14px;
 }
 
 .plugin-trust-warn-icon {
   display: inline-flex;
   color: var(--error);
   flex-shrink: 0;
-  margin-top: 2px;
 }
 
 .plugin-trust-head .modal-title {
@@ -37,15 +36,8 @@
 
 .plugin-trust-risk {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.plugin-trust-risk-icon {
-  display: inline-flex;
-  color: var(--text-2);
-  flex-shrink: 0;
-  margin-top: 1px;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .plugin-trust-risk-title {
@@ -83,7 +75,7 @@
 .plugin-trust-skip {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   font-size: 13px;
   color: var(--text-2);
   cursor: pointer;
@@ -91,6 +83,7 @@
 }
 
 .plugin-trust-skip input {
+  margin: 0;
   accent-color: var(--accent);
 }
 
