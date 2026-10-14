@@ -1,41 +1,89 @@
 .plugin-trust-card {
-  max-width: 480px;
+  max-width: 460px;
 }
 
-.plugin-trust-intro {
-  margin: 14px 0 0;
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--text-2);
+.plugin-trust-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.plugin-trust-warn-icon {
+  display: inline-flex;
+  color: var(--error);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.plugin-trust-head .modal-title {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.plugin-trust-source {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-3);
 }
 
 .plugin-trust-risks {
-  margin: 12px 0 0;
-  padding-left: 20px;
-  font-size: 13px;
-  line-height: 1.9;
-  color: var(--text-2);
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.plugin-trust-risks strong {
+.plugin-trust-risk {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.plugin-trust-risk-icon {
+  display: inline-flex;
+  color: var(--text-2);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.plugin-trust-risk-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--text);
 }
 
+.plugin-trust-risk-detail {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
 .plugin-trust-warning {
-  margin: 12px 0 0;
-  padding: 8px 12px;
-  border: 1px solid var(--error);
-  border-radius: 8px;
-  color: var(--error);
+  margin: 18px 0 0;
   font-size: 13px;
   font-weight: 500;
+  color: var(--error);
+}
+
+.plugin-trust-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .plugin-trust-skip {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
   font-size: 13px;
   color: var(--text-2);
   cursor: pointer;
@@ -46,13 +94,17 @@
   accent-color: var(--accent);
 }
 
-.plugin-trust-confirm {
+.plugin-trust-footer .modal-actions {
+  margin: 0;
+}
+
+.modal-confirm.plugin-trust-confirm {
   background-color: var(--error);
   color: var(--on-accent);
   border: none;
 }
 
-.plugin-trust-confirm:hover {
+.modal-confirm.plugin-trust-confirm:hover {
   background-color: var(--error);
   opacity: 0.9;
 }

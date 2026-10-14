@@ -307,7 +307,7 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
                             disabled={busy}
                             onClick={() => requestTrust(selected)}
                           >
-                            信任该插件
+                            信任
                           </button>
                         )}
                       </div>
