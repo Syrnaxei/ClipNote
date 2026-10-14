@@ -292,48 +292,77 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
                     <>
                       <div className="plugins-divider" />
 
-                      <div className="plugins-switch-row">
-                        <div>
-                          <span className="plugins-switch-label">信任该插件</span>
-                          <span className="plugins-switch-hint">
-                            免沙箱插件需逐个确认风险后才会出现在文本选择工具栏；插件更新版本后需重新信任
-                          </span>
+                      <div className="plugins-prereq">
+                        <span className="plugins-prereq-label">使用前提</span>
+                        <div className="plugins-prereq-panel">
+                          <div className="plugins-prereq-step">
+                            <div className="plugins-prereq-body">
+                              <span className="plugins-prereq-name">信任插件</span>
+                              <span className="plugins-prereq-hint">
+                                免沙箱插件需逐个确认风险后才会出现在文本选择工具栏；插件更新版本后需重新信任
+                              </span>
+                            </div>
+                            {isTrusted(selected) ? (
+                              <span className="plugins-tag">已信任</span>
+                            ) : (
+                              <button
+                                className="plugins-trust-button"
+                                disabled={busy}
+                                onClick={() => requestTrust(selected)}
+                              >
+                                信任
+                              </button>
+                            )}
+                          </div>
+                          <div className="plugins-prereq-step">
+                            <div className="plugins-prereq-body">
+                              <span className="plugins-prereq-name">启用插件</span>
+                              <span className="plugins-prereq-hint">
+                                {isTrusted(selected)
+                                  ? PLUGIN_SECTIONS.find((s) => s.type === selected.type)?.switchHint
+                                  : '未信任的插件不能启用，请先信任该插件'}
+                              </span>
+                            </div>
+                            <button
+                              className={`toggle-switch ${selected.enabled ? 'on' : ''}`}
+                              role="switch"
+                              aria-checked={selected.enabled}
+                              aria-label="启用插件"
+                              disabled={busy || !isTrusted(selected)}
+                              onClick={handleToggleEnabled}
+                            >
+                              <span className="toggle-knob" />
+                            </button>
+                          </div>
                         </div>
-                        {isTrusted(selected) ? (
-                          <span className="plugins-tag">已信任</span>
-                        ) : (
-                          <button
-                            className="plugins-trust-button"
-                            disabled={busy}
-                            onClick={() => requestTrust(selected)}
-                          >
-                            信任
-                          </button>
-                        )}
                       </div>
                     </>
                   )}
 
-                  <div className="plugins-divider" />
+                  {selected.type !== 'selection-toolbar' && (
+                    <>
+                      <div className="plugins-divider" />
 
-                  <div className="plugins-switch-row">
-                    <div>
-                      <span className="plugins-switch-label">启用插件</span>
-                      <span className="plugins-switch-hint">
-                        {PLUGIN_SECTIONS.find((s) => s.type === selected.type)?.switchHint}
-                      </span>
-                    </div>
-                    <button
-                      className={`toggle-switch ${selected.enabled ? 'on' : ''}`}
-                      role="switch"
-                      aria-checked={selected.enabled}
-                      aria-label="启用插件"
-                      disabled={busy}
-                      onClick={handleToggleEnabled}
-                    >
-                      <span className="toggle-knob" />
-                    </button>
-                  </div>
+                      <div className="plugins-switch-row">
+                        <div>
+                          <span className="plugins-switch-label">启用插件</span>
+                          <span className="plugins-switch-hint">
+                            {PLUGIN_SECTIONS.find((s) => s.type === selected.type)?.switchHint}
+                          </span>
+                        </div>
+                        <button
+                          className={`toggle-switch ${selected.enabled ? 'on' : ''}`}
+                          role="switch"
+                          aria-checked={selected.enabled}
+                          aria-label="启用插件"
+                          disabled={busy}
+                          onClick={handleToggleEnabled}
+                        >
+                          <span className="toggle-knob" />
+                        </button>
+                      </div>
+                    </>
+                  )}
 
                   <div className="plugins-detail-actions">
                     <PopConfirm title={`确定删除插件「${selected.name}」？`} onConfirm={handleDelete}>

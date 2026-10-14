@@ -355,6 +355,56 @@ html.mobile .plugins {
   color: var(--error);
 }
 
+.plugins-prereq {
+  margin-top: 2px;
+}
+
+.plugins-prereq-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.plugins-prereq-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: var(--bg);
+  padding: 4px 16px;
+}
+
+.plugins-prereq-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+}
+
+.plugins-prereq-step + .plugins-prereq-step {
+  border-top: 1px solid var(--border);
+}
+
+.plugins-prereq-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.plugins-prereq-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.plugins-prereq-hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
 .plugins-trust-button {
   padding: 8px 16px;
   border: 1px solid var(--accent);
