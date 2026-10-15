@@ -5,6 +5,7 @@
   border-right: 1px solid var(--border);
   overflow: hidden;
   transition: width 0.2s ease;
+  user-select: none;
 }
 
 .sidebar.collapsed {
