@@ -2,6 +2,8 @@
   flex: 1;
   overflow-y: auto;
   padding: 32px 24px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .settings-container {
