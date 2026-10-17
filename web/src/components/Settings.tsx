@@ -84,7 +84,7 @@ const SECTIONS: { id: SectionId; label: string }[] = [
   { id: 'about', label: '关于' },
 ];
 
-const APP_VERSION = '1.2.3';
+const APP_VERSION = '1.2.4';
 const PROJECT_URL = 'https://github.com/Syrnaxei/ClipNote';
 
 interface SettingsProps {
