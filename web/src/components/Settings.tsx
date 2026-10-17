@@ -40,6 +40,50 @@ const ACTION_ICONS: Record<ItemActionId, React.ReactNode> = {
   ),
 };
 
+const NAV_ICONS: Record<SectionId, React.ReactNode> = {
+  appearance: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  ),
+  actions: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M15 3v18" />
+    </svg>
+  ),
+  connection: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+      <circle cx="12" cy="20" r="1" />
+    </svg>
+  ),
+  account: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
+  about: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-5M12 8h.01" />
+    </svg>
+  ),
+};
+
+type SectionId = 'appearance' | 'actions' | 'connection' | 'account' | 'about';
+
+const SECTIONS: { id: SectionId; label: string }[] = [
+  { id: 'appearance', label: '外观' },
+  { id: 'actions', label: '条目操作' },
+  { id: 'connection', label: '连接' },
+  { id: 'account', label: '账户' },
+  { id: 'about', label: '关于' },
+];
+
 const APP_VERSION = '1.2.3';
 const PROJECT_URL = 'https://github.com/Syrnaxei/ClipNote';
 
@@ -72,6 +116,8 @@ function Settings({
 }: SettingsProps) {
   const [editingDevice, setEditingDevice] = useState(false);
   const [deviceDraft, setDeviceDraft] = useState(deviceName);
+  const mainRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
   const dragActionId = useRef<ItemActionId | null>(null);
   const tilesRef = useRef<HTMLDivElement>(null);
   const blankDragRef = useRef<HTMLDivElement>(null);
@@ -104,6 +150,12 @@ function Settings({
     });
     tilePositions.current = new Map();
   }, [itemActions.order]);
+
+  const scrollToSection = (id: SectionId) => {
+    const el = sectionRefs.current[id];
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const startEditDevice = () => {
     setDeviceDraft(deviceName);
@@ -140,7 +192,7 @@ function Settings({
 
   return (
     <div className="settings">
-      <div className="settings-container">
+      <div className="settings-topbar">
         <button className="settings-back" onClick={onBack}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -148,182 +200,234 @@ function Settings({
           </svg>
           返回
         </button>
+      </div>
 
-        <h1 className="settings-title">设置</h1>
-
-        <section className="settings-section">
-          <h2 className="settings-section-title">外观</h2>
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">夜间模式</span>
-              <span className="settings-row-desc">使用深色暖色调界面</span>
-            </div>
+      <div className="settings-body">
+        <nav className="settings-nav" aria-label="设置分区">
+          {SECTIONS.map(({ id, label }) => (
             <button
-              className={`toggle-switch ${theme === 'dark' ? 'on' : ''}`}
-              role="switch"
-              aria-checked={theme === 'dark'}
-              aria-label="夜间模式"
-              onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+              key={id}
+              className="settings-nav-item"
+              onClick={() => scrollToSection(id)}
             >
-              <span className="toggle-knob" />
+              {NAV_ICONS[id]}
+              {label}
             </button>
-          </div>
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">置顶选中样式</span>
-              <span className="settings-row-desc">置顶剪切板的几何标识样式</span>
-            </div>
-            <div className="pin-style-options">
-              {PIN_STYLES.map(({ value, label }) => (
+          ))}
+          <div className="settings-nav-spacer" />
+          <span className="settings-nav-version">v{APP_VERSION}</span>
+        </nav>
+
+        <div className="settings-main" ref={mainRef}>
+          <section
+            className="settings-section"
+            ref={(el) => {
+              sectionRefs.current.appearance = el;
+            }}
+          >
+            <h2 className="settings-section-heading">外观</h2>
+            <div className="settings-card">
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">夜间模式</span>
+                  <span className="settings-row-desc">使用深色暖色调界面</span>
+                </div>
                 <button
-                  key={value}
-                  className={`pin-style-option ${pinStyle === value ? 'selected' : ''}`}
-                  onClick={() => onPinStyleChange(value)}
+                  className={`toggle-switch ${theme === 'dark' ? 'on' : ''}`}
+                  role="switch"
+                  aria-checked={theme === 'dark'}
+                  aria-label="夜间模式"
+                  onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
                 >
-                  <span className={`pin-style-swatch ${value}`} />
-                  <span className="pin-style-name">{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">设备名称</span>
-              <span className="settings-row-desc">添加条目时记录的来源设备，留空则不记录</span>
-            </div>
-            {editingDevice ? (
-              <div className="device-edit">
-                <input
-                  className="settings-input"
-                  value={deviceDraft}
-                  maxLength={100}
-                  placeholder="我的电脑"
-                  autoFocus
-                  onChange={(e) => setDeviceDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') saveDevice();
-                    if (e.key === 'Escape') setEditingDevice(false);
-                  }}
-                />
-                <button className="device-save-button" onClick={saveDevice}>
-                  保存
+                  <span className="toggle-knob" />
                 </button>
               </div>
-            ) : (
-              <div className="device-display">
-                <span className="device-value">{deviceName || '未设置'}</span>
-                <button className="device-edit-button" onClick={startEditDevice}>
-                  编辑
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">置顶选中样式</span>
+                  <span className="settings-row-desc">置顶剪切板的几何标识样式</span>
+                </div>
+                <div className="pin-style-options">
+                  {PIN_STYLES.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      className={`pin-style-option ${pinStyle === value ? 'selected' : ''}`}
+                      onClick={() => onPinStyleChange(value)}
+                    >
+                      <span className={`pin-style-swatch ${value}`} />
+                      <span className="pin-style-name">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">设备名称</span>
+                  <span className="settings-row-desc">添加条目时记录的来源设备，留空则不记录</span>
+                </div>
+                {editingDevice ? (
+                  <div className="device-edit">
+                    <input
+                      className="settings-input"
+                      value={deviceDraft}
+                      maxLength={100}
+                      placeholder="我的电脑"
+                      autoFocus
+                      onChange={(e) => setDeviceDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveDevice();
+                        if (e.key === 'Escape') setEditingDevice(false);
+                      }}
+                    />
+                    <button className="device-save-button" onClick={saveDevice}>
+                      保存
+                    </button>
+                  </div>
+                ) : (
+                  <div className="device-display">
+                    <span className="device-value">{deviceName || '未设置'}</span>
+                    <button className="device-edit-button" onClick={startEditDevice}>
+                      编辑
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section
+            className="settings-section"
+            ref={(el) => {
+              sectionRefs.current.actions = el;
+            }}
+          >
+            <h2 className="settings-section-heading">条目操作</h2>
+            <div className="settings-card">
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">操作按钮</span>
+                  <span className="settings-row-desc">
+                    拖动图标调整顺序，点击图标切换显示 / 隐藏
+                  </span>
+                </div>
+                <div ref={blankDragRef} className="drag-blank" aria-hidden="true" />
+                <div className="item-action-tiles" ref={tilesRef}>
+                  {itemActions.order.map((id) => {
+                    const action = ITEM_ACTIONS.find((a) => a.id === id);
+                    if (!action) return null;
+                    const hidden = itemActions.hidden.includes(id);
+                    return (
+                      <button
+                        key={id}
+                        data-action-id={id}
+                        className={`item-action-tile ${hidden ? 'hidden' : ''}`}
+                        draggable
+                        onDragStart={(e) => {
+                          dragActionId.current = id;
+                          e.dataTransfer.effectAllowed = 'move';
+                          if (blankDragRef.current) {
+                            e.dataTransfer.setDragImage(blankDragRef.current, 0, 0);
+                          }
+                        }}
+                        onDragEnd={() => {
+                          dragActionId.current = null;
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                        }}
+                        onDragEnter={() => reorderAction(id)}
+                        onDrop={(e) => e.preventDefault()}
+                        onClick={() => toggleActionHidden(id)}
+                        title={hidden ? `${action.label}（已隐藏，点击显示）` : `${action.label}（点击隐藏）`}
+                        aria-label={`${action.label}，${hidden ? '已隐藏' : '已显示'}，拖动调整顺序，点击切换显示`}
+                      >
+                        <span className="item-action-tile-icon">
+                          {ACTION_ICONS[id]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section
+            className="settings-section"
+            ref={(el) => {
+              sectionRefs.current.connection = el;
+            }}
+          >
+            <h2 className="settings-section-heading">连接</h2>
+            <div className="settings-card">
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">实时同步</span>
+                  <span className="settings-row-desc">通过 WebSocket 推送变更</span>
+                </div>
+                <span className={`connection-badge ${connected ? 'online' : 'offline'}`}>
+                  <span className="connection-badge-dot" />
+                  {connected ? '已连接' : '连接中...'}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section
+            className="settings-section"
+            ref={(el) => {
+              sectionRefs.current.account = el;
+            }}
+          >
+            <h2 className="settings-section-heading">账户</h2>
+            <div className="settings-card">
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">退出登录</span>
+                  <span className="settings-row-desc">清除本机保存的 API Key</span>
+                </div>
+                <button className="logout-button" onClick={onLogout}>
+                  退出
                 </button>
               </div>
-            )}
-          </div>
-        </section>
+            </div>
+          </section>
 
-        <section className="settings-section">
-          <h2 className="settings-section-title">条目操作</h2>
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">操作按钮</span>
-              <span className="settings-row-desc">
-                拖动图标调整顺序，点击图标切换显示 / 隐藏
-              </span>
+          <section
+            className="settings-section"
+            ref={(el) => {
+              sectionRefs.current.about = el;
+            }}
+          >
+            <h2 className="settings-section-heading">关于</h2>
+            <div className="settings-card">
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">版本</span>
+                </div>
+                <span className="about-version">v{APP_VERSION}</span>
+              </div>
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">项目地址</span>
+                  <span className="settings-row-desc">在 GitHub 上查看源码与更新</span>
+                </div>
+                <a
+                  className="about-link"
+                  href={PROJECT_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.75 2.69 1.25 3.35.95.1-.74.4-1.25.72-1.53-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 2.88-.39c.98 0 1.96.13 2.88.39 2.2-1.49 3.16-1.18 3.16-1.18.63 1.59.24 2.76.12 3.05.74.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.26 5.66.41.36.78 1.05.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .3.2.67.8.55A10.52 10.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+                  </svg>
+                  GitHub
+                </a>
+              </div>
             </div>
-            <div ref={blankDragRef} className="drag-blank" aria-hidden="true" />
-            <div className="item-action-tiles" ref={tilesRef}>
-              {itemActions.order.map((id) => {
-                const action = ITEM_ACTIONS.find((a) => a.id === id);
-                if (!action) return null;
-                const hidden = itemActions.hidden.includes(id);
-                return (
-                  <button
-                    key={id}
-                    data-action-id={id}
-                    className={`item-action-tile ${hidden ? 'hidden' : ''}`}
-                    draggable
-                    onDragStart={(e) => {
-                      dragActionId.current = id;
-                      e.dataTransfer.effectAllowed = 'move';
-                      if (blankDragRef.current) {
-                        e.dataTransfer.setDragImage(blankDragRef.current, 0, 0);
-                      }
-                    }}
-                    onDragEnd={() => {
-                      dragActionId.current = null;
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = 'move';
-                    }}
-                    onDragEnter={() => reorderAction(id)}
-                    onDrop={(e) => e.preventDefault()}
-                    onClick={() => toggleActionHidden(id)}
-                    title={hidden ? `${action.label}（已隐藏，点击显示）` : `${action.label}（点击隐藏）`}
-                    aria-label={`${action.label}，${hidden ? '已隐藏' : '已显示'}，拖动调整顺序，点击切换显示`}
-                  >
-                    <span className="item-action-tile-icon">
-                      {ACTION_ICONS[id]}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <section className="settings-section">
-          <h2 className="settings-section-title">连接</h2>
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">实时同步</span>
-              <span className="settings-row-desc">通过 WebSocket 推送变更</span>
-            </div>
-            <span className={`connection-badge ${connected ? 'online' : 'offline'}`}>
-              <span className="connection-badge-dot" />
-              {connected ? '已连接' : '连接中...'}
-            </span>
-          </div>
-        </section>
-
-        <section className="settings-section">
-          <h2 className="settings-section-title">账户</h2>
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">退出登录</span>
-              <span className="settings-row-desc">清除本机保存的 API Key</span>
-            </div>
-            <button className="logout-button" onClick={onLogout}>
-              退出
-            </button>
-          </div>
-        </section>
-
-        <section className="settings-section">
-          <h2 className="settings-section-title">关于</h2>
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">版本</span>
-            </div>
-            <span className="about-version">v{APP_VERSION}</span>
-          </div>
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">项目地址</span>
-              <span className="settings-row-desc">在 GitHub 上查看源码与更新</span>
-            </div>
-            <a
-              className="about-link"
-              href={PROJECT_URL}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.75 2.69 1.25 3.35.95.1-.74.4-1.25.72-1.53-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 2.88-.39c.98 0 1.96.13 2.88.39 2.2-1.49 3.16-1.18 3.16-1.18.63 1.59.24 2.76.12 3.05.74.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.26 5.66.41.36.78 1.05.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .3.2.67.8.55A10.52 10.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
-              </svg>
-              GitHub
-            </a>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </div>
   );
