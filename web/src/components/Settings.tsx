@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './Settings.css';
+import './ClipboardItem.css';
 import { PIN_STYLES, type PinStyle } from '../pinStyle';
 import {
   ITEM_ACTIONS,
@@ -438,6 +439,32 @@ function Settings({
                     </div>
                   );
                 })}
+              </div>
+              <div className="action-preview">
+                <span className="action-preview-title">条目卡片效果</span>
+                <div className="action-preview-item" aria-hidden="true">
+                  <span className="action-preview-thumb" />
+                  <div className="action-preview-text">
+                    <span className="action-preview-line" />
+                    <span className="action-preview-line short" />
+                  </div>
+                  <div className="action-preview-actions">
+                    {itemActions.order
+                      .filter((id) => !itemActions.hidden.includes(id))
+                      .map((id) => (
+                        <button key={id} type="button" tabIndex={-1} className="action-button">
+                          {ACTION_ICONS[id]}
+                        </button>
+                      ))}
+                    {itemActions.order.every((id) =>
+                      itemActions.hidden.includes(id),
+                    ) && (
+                      <span className="action-preview-empty">
+                        全部隐藏后条目卡片不显示操作按钮
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </section>
