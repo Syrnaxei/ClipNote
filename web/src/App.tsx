@@ -18,7 +18,7 @@ import {
 } from './itemActions';
 import type { Clipboard, ClipboardItem, DuplicateGroup, Plugin, WsEvent } from './types';
 import { migrateStorageKey } from './storage';
-import { loadTrustedKeys, trustKeyOf } from './plugins/trust';
+import { loadTrustedKeys, saveTrustedKeys, trustKeyOf } from './plugins/trust';
 
 type Theme = 'light' | 'dark';
 
@@ -85,6 +85,9 @@ function App() {
   const [activePlugin, setActivePlugin] = useState<Plugin | null>(null);
   const [toolbarPlugins, setToolbarPlugins] = useState<Plugin[]>([]);
   const [trustedKeys, setTrustedKeys] = useState<string[]>(() => loadTrustedKeys());
+  useEffect(() => {
+    saveTrustedKeys(trustedKeys);
+  }, [trustedKeys]);
   const [notice, setNotice] = useState<{
     text: string;
     actionLabel?: string;
