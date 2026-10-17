@@ -14,6 +14,8 @@
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .clipboard-list-header h2 {
