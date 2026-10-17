@@ -53,8 +53,10 @@ function ClipboardList({
   const [menuOpen, setMenuOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [pluginTarget, setPluginTarget] = useState<ClipboardItem | null>(null);
+  const [nameCopied, setNameCopied] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
   const addItemInputRef = useRef<HTMLTextAreaElement>(null);
+  const nameCopyTimerRef = useRef<number>(0);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -110,10 +112,39 @@ function ClipboardList({
     dupGroups?.flatMap((group) => group.items.map((item) => item.id)) ?? [],
   );
 
+  const doCopyName = async () => {
+    if (clipboard === null) return;
+    if (await onCopyItem(clipboard.name)) {
+      setNameCopied(true);
+      window.clearTimeout(nameCopyTimerRef.current);
+      nameCopyTimerRef.current = window.setTimeout(() => setNameCopied(false), 1500);
+    }
+  };
+
   return (
     <div className="clipboard-list-container">
       <div className="clipboard-list-header">
-        <h2>{clipboard?.name ?? '未选择剪切板'}</h2>
+        <div className="header-title-group">
+          <h2>{clipboard?.name ?? '未选择剪切板'}</h2>
+          {clipboard !== null && (
+            <button
+              className={`header-copy-button ${nameCopied ? 'copied' : ''}`}
+              onClick={doCopyName}
+              title={nameCopied ? '已复制' : '复制名称'}
+            >
+              {nameCopied ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
         {clipboard !== null && (
           <div className={`header-actions ${menuOpen ? 'open' : ''}`} ref={actionsRef}>
             <button

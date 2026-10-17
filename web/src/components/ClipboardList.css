@@ -18,6 +18,12 @@
   -webkit-user-select: none;
 }
 
+.header-title-group {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
 .clipboard-list-header h2 {
   margin: 0;
   font-size: 26px;
@@ -25,6 +31,40 @@
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+.header-copy-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  margin-left: 10px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  color: var(--text-3);
+  transition: opacity 0.2s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.header-title-group:hover .header-copy-button,
+.header-copy-button.copied {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.header-copy-button:hover {
+  background-color: var(--surface-2);
+  color: var(--text);
+}
+
+.header-copy-button.copied {
+  color: var(--accent);
 }
 
 .header-actions {
