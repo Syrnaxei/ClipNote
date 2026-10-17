@@ -427,6 +427,12 @@ html.mobile .plugins {
   cursor: default;
 }
 
+.plugins-untrust-button {
+  border-color: var(--error);
+  background-color: transparent;
+  color: var(--error);
+}
+
 .plugins-detail-actions {
   display: flex;
   justify-content: flex-end;

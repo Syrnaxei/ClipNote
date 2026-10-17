@@ -76,6 +76,22 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
     setTrusting(null);
   };
 
+  const handleUntrust = async () => {
+    if (!selected) return;
+    onTrustChange(trustedKeys.filter((k) => k !== trustKeyOf(selected)));
+    if (!selected.enabled) return;
+    setError('');
+    setBusy(true);
+    try {
+      await api.updatePlugin(selected.id, { enabled: false });
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '操作失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   useEffect(() => {
     api
       .listPlugins()
@@ -303,7 +319,20 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
                               </span>
                             </div>
                             {isTrusted(selected) ? (
-                              <span className="plugins-tag">已信任</span>
+                              <PopConfirm
+                                title={`确定取消信任「${selected.name}」？${
+                                  selected.enabled ? '插件将同时停用，' : ''
+                                }取消后需重新信任才能再次使用`}
+                                confirmText="取消信任"
+                                onConfirm={handleUntrust}
+                              >
+                                <button
+                                  className="plugins-trust-button plugins-untrust-button"
+                                  disabled={busy}
+                                >
+                                  取消信任
+                                </button>
+                              </PopConfirm>
                             ) : (
                               <button
                                 className="plugins-trust-button"
