@@ -101,6 +101,8 @@
 
 .settings-section {
   max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .settings-section + .settings-section {
