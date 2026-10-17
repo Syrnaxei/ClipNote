@@ -123,6 +123,10 @@
   overflow: hidden;
 }
 
+.settings-card.card-dragging {
+  overflow: visible;
+}
+
 .settings-row {
   display: flex;
   align-items: center;
@@ -430,32 +434,18 @@
   color: var(--text);
 }
 
-.drag-blank {
-  position: fixed;
-  top: -100px;
-  left: -100px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
 .action-list {
   display: flex;
   flex-direction: column;
 }
 
 .action-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 11px 20px;
   border-top: 1px solid var(--border);
-  cursor: grab;
-}
-
-.action-row:active {
-  cursor: grabbing;
 }
 
 .action-drag {
@@ -465,6 +455,16 @@
   width: 20px;
   flex-shrink: 0;
   color: var(--text-3);
+  cursor: grab;
+  user-select: none;
+}
+
+.action-drag:active {
+  cursor: grabbing;
+}
+
+.action-drag svg {
+  pointer-events: none;
 }
 
 .action-icon {

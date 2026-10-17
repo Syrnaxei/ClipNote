@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './Settings.css';
 import { PIN_STYLES, type PinStyle } from '../pinStyle';
 import {
@@ -87,6 +87,9 @@ const SECTIONS: { id: SectionId; label: string }[] = [
 const APP_VERSION = '1.2.4';
 const PROJECT_URL = 'https://github.com/Syrnaxei/ClipNote';
 
+const ROW_HEIGHT_FALLBACK = 48;
+const ROW_EASE = 'transform 250ms cubic-bezier(0.65, 0, 0.35, 1)';
+
 interface SettingsProps {
   theme: 'light' | 'dark';
   onThemeChange: (theme: 'light' | 'dark') => void;
@@ -119,40 +122,118 @@ function Settings({
   const [activeSection, setActiveSection] = useState<SectionId>('appearance');
   const mainRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
-  const dragActionId = useRef<ItemActionId | null>(null);
-  const tilesRef = useRef<HTMLDivElement>(null);
-  const blankDragRef = useRef<HTMLDivElement>(null);
-  const tilePositions = useRef<Map<ItemActionId, DOMRect>>(new Map());
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragY, setDragY] = useState(0);
+  const [transitionDisabled, setTransitionDisabled] = useState(false);
+  const dragRef = useRef({
+    index: -1,
+    overIndex: -1,
+    startY: 0,
+    offsetY: 0,
+    itemHeight: 0,
+  });
+  const itemActionsRef = useRef(itemActions);
+  itemActionsRef.current = itemActions;
 
-  useLayoutEffect(() => {
-    if (tilePositions.current.size === 0) return;
-    const container = tilesRef.current;
-    if (!container) return;
-    container.querySelectorAll<HTMLElement>('[data-action-id]').forEach((el) => {
-      const id = el.dataset.actionId as ItemActionId;
-      const prev = tilePositions.current.get(id);
-      if (!prev) return;
-      const rect = el.getBoundingClientRect();
-      const dx = prev.left - rect.left;
-      const dy = prev.top - rect.top;
-      if (dx === 0 && dy === 0) return;
-      el.style.transition = 'none';
-      el.style.transform = `translate(${dx}px, ${dy}px)`;
-      requestAnimationFrame(() => {
-        el.style.transition = 'transform 0.25s ease';
-        el.style.transform = '';
-        el.addEventListener(
-          'transitionend',
-          () => {
-            el.style.transition = '';
-            el.style.transform = '';
-          },
-          { once: true },
+  useEffect(() => {
+    if (dragIndex === null) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const d = dragRef.current;
+      d.offsetY = e.clientY - d.startY;
+      setDragY(d.offsetY);
+      const h = d.itemHeight || ROW_HEIGHT_FALLBACK;
+      const len = itemActionsRef.current.order.length;
+      let target = d.index;
+      if (d.offsetY > h / 2) {
+        target = Math.min(
+          len - 1,
+          d.index + Math.floor((d.offsetY + h / 2) / h),
         );
-      });
-    });
-    tilePositions.current = new Map();
-  }, [itemActions.order]);
+      } else if (d.offsetY < -h / 2) {
+        target = Math.max(0, d.index + Math.ceil((d.offsetY - h / 2) / h));
+      }
+      if (target !== d.overIndex) {
+        d.overIndex = target;
+        setDragOverIndex(target);
+      }
+    };
+    const handleMouseUp = () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      const { index: from, overIndex: to } = dragRef.current;
+      setTransitionDisabled(true);
+      setDragIndex(null);
+      setDragOverIndex(null);
+      setDragY(0);
+      if (from !== to) {
+        const order = [...itemActionsRef.current.order];
+        const [moved] = order.splice(from, 1);
+        order.splice(to, 0, moved);
+        onItemActionsChange({ ...itemActionsRef.current, order });
+      }
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setTransitionDisabled(false)),
+      );
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragIndex, onItemActionsChange]);
+
+  const handleActionDragStart = (index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const row = (e.currentTarget as HTMLElement).closest(
+      '.action-row',
+    ) as HTMLElement | null;
+    if (!row) return;
+    const rect = row.getBoundingClientRect();
+    dragRef.current = {
+      index,
+      overIndex: index,
+      startY: e.clientY,
+      offsetY: 0,
+      itemHeight: rect.height,
+    };
+    setDragIndex(index);
+    setDragOverIndex(index);
+    setDragY(0);
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+  };
+
+  const getActionRowStyle = (index: number): React.CSSProperties => {
+    if (dragIndex === null) {
+      return { transition: transitionDisabled ? 'none' : ROW_EASE };
+    }
+    const h = dragRef.current.itemHeight || ROW_HEIGHT_FALLBACK;
+    if (index === dragIndex) {
+      return {
+        transform: `translateY(${dragY}px)`,
+        zIndex: 1000,
+        opacity: 0.92,
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+        backgroundColor: 'var(--surface)',
+        borderRadius: '8px',
+        transition: 'none',
+        position: 'relative',
+      };
+    }
+    if (dragOverIndex! > dragIndex) {
+      if (index > dragIndex && index <= dragOverIndex!) {
+        return { transform: `translateY(-${h}px)`, transition: ROW_EASE };
+      }
+    } else if (dragOverIndex! < dragIndex) {
+      if (index >= dragOverIndex! && index < dragIndex) {
+        return { transform: `translateY(${h}px)`, transition: ROW_EASE };
+      }
+    }
+    return { transition: ROW_EASE };
+  };
 
   const scrollToSection = (id: SectionId) => {
     const el = sectionRefs.current[id];
@@ -183,22 +264,6 @@ function Settings({
   const saveDevice = () => {
     onDeviceNameChange(deviceDraft.trim());
     setEditingDevice(false);
-  };
-
-  const reorderAction = (targetId: ItemActionId) => {
-    const fromId = dragActionId.current;
-    if (!fromId || fromId === targetId) return;
-    const order = [...itemActions.order];
-    const from = order.indexOf(fromId);
-    const to = order.indexOf(targetId);
-    if (from < 0 || to < 0) return;
-    tilesRef.current?.querySelectorAll<HTMLElement>('[data-action-id]').forEach((el) => {
-      const id = el.dataset.actionId as ItemActionId;
-      if (id) tilePositions.current.set(id, el.getBoundingClientRect());
-    });
-    order.splice(from, 1);
-    order.splice(to, 0, fromId);
-    onItemActionsChange({ ...itemActions, order });
   };
 
   const toggleActionHidden = (id: ItemActionId) => {
@@ -320,7 +385,9 @@ function Settings({
             }}
           >
             <h2 className="settings-section-heading">条目操作</h2>
-            <div className="settings-card">
+            <div
+              className={`settings-card ${dragIndex !== null ? 'card-dragging' : ''}`}
+            >
               <div className="settings-row">
                 <div className="settings-row-text">
                   <span className="settings-row-label">操作按钮</span>
@@ -329,36 +396,22 @@ function Settings({
                   </span>
                 </div>
               </div>
-              <div ref={blankDragRef} className="drag-blank" aria-hidden="true" />
-              <div className="action-list" ref={tilesRef}>
-                {itemActions.order.map((id) => {
+              <div className="action-list">
+                {itemActions.order.map((id, index) => {
                   const action = ITEM_ACTIONS.find((a) => a.id === id);
                   if (!action) return null;
                   const hidden = itemActions.hidden.includes(id);
                   return (
                     <div
                       key={id}
-                      data-action-id={id}
                       className={`action-row ${hidden ? 'hidden-row' : ''}`}
-                      draggable
-                      onDragStart={(e) => {
-                        dragActionId.current = id;
-                        e.dataTransfer.effectAllowed = 'move';
-                        if (blankDragRef.current) {
-                          e.dataTransfer.setDragImage(blankDragRef.current, 0, 0);
-                        }
-                      }}
-                      onDragEnd={() => {
-                        dragActionId.current = null;
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = 'move';
-                      }}
-                      onDragEnter={() => reorderAction(id)}
-                      onDrop={(e) => e.preventDefault()}
+                      style={getActionRowStyle(index)}
                     >
-                      <span className="action-drag" aria-hidden="true">
+                      <span
+                        className="action-drag"
+                        aria-hidden="true"
+                        onMouseDown={(e) => handleActionDragStart(index, e)}
+                      >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                           <circle cx="9" cy="5" r="1.7" />
                           <circle cx="15" cy="5" r="1.7" />
