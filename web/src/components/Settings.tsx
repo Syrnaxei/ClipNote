@@ -132,10 +132,12 @@ function Settings({
       const id = el.dataset.actionId as ItemActionId;
       const prev = tilePositions.current.get(id);
       if (!prev) return;
-      const dx = prev.left - el.getBoundingClientRect().left;
-      if (dx === 0) return;
+      const rect = el.getBoundingClientRect();
+      const dx = prev.left - rect.left;
+      const dy = prev.top - rect.top;
+      if (dx === 0 && dy === 0) return;
       el.style.transition = 'none';
-      el.style.transform = `translateX(${dx}px)`;
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
       requestAnimationFrame(() => {
         el.style.transition = 'transform 0.25s ease';
         el.style.transform = '';
@@ -323,48 +325,66 @@ function Settings({
                 <div className="settings-row-text">
                   <span className="settings-row-label">操作按钮</span>
                   <span className="settings-row-desc">
-                    拖动图标调整顺序，点击图标切换显示 / 隐藏
+                    拖动手柄调整顺序，开关控制显示 / 隐藏
                   </span>
                 </div>
-                <div ref={blankDragRef} className="drag-blank" aria-hidden="true" />
-                <div className="item-action-tiles" ref={tilesRef}>
-                  {itemActions.order.map((id) => {
-                    const action = ITEM_ACTIONS.find((a) => a.id === id);
-                    if (!action) return null;
-                    const hidden = itemActions.hidden.includes(id);
-                    return (
+              </div>
+              <div ref={blankDragRef} className="drag-blank" aria-hidden="true" />
+              <div className="action-list" ref={tilesRef}>
+                {itemActions.order.map((id) => {
+                  const action = ITEM_ACTIONS.find((a) => a.id === id);
+                  if (!action) return null;
+                  const hidden = itemActions.hidden.includes(id);
+                  return (
+                    <div
+                      key={id}
+                      data-action-id={id}
+                      className={`action-row ${hidden ? 'hidden-row' : ''}`}
+                      draggable
+                      onDragStart={(e) => {
+                        dragActionId.current = id;
+                        e.dataTransfer.effectAllowed = 'move';
+                        if (blankDragRef.current) {
+                          e.dataTransfer.setDragImage(blankDragRef.current, 0, 0);
+                        }
+                      }}
+                      onDragEnd={() => {
+                        dragActionId.current = null;
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDragEnter={() => reorderAction(id)}
+                      onDrop={(e) => e.preventDefault()}
+                    >
+                      <span className="action-drag" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="9" cy="5" r="1.7" />
+                          <circle cx="15" cy="5" r="1.7" />
+                          <circle cx="9" cy="12" r="1.7" />
+                          <circle cx="15" cy="12" r="1.7" />
+                          <circle cx="9" cy="19" r="1.7" />
+                          <circle cx="15" cy="19" r="1.7" />
+                        </svg>
+                      </span>
+                      <span className="action-icon">{ACTION_ICONS[id]}</span>
+                      <div className="action-text">
+                        <span className="action-name">{action.label}</span>
+                        <span className="action-desc">{action.desc}</span>
+                      </div>
                       <button
-                        key={id}
-                        data-action-id={id}
-                        className={`item-action-tile ${hidden ? 'hidden' : ''}`}
-                        draggable
-                        onDragStart={(e) => {
-                          dragActionId.current = id;
-                          e.dataTransfer.effectAllowed = 'move';
-                          if (blankDragRef.current) {
-                            e.dataTransfer.setDragImage(blankDragRef.current, 0, 0);
-                          }
-                        }}
-                        onDragEnd={() => {
-                          dragActionId.current = null;
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = 'move';
-                        }}
-                        onDragEnter={() => reorderAction(id)}
-                        onDrop={(e) => e.preventDefault()}
+                        className={`toggle-switch ${hidden ? '' : 'on'}`}
+                        role="switch"
+                        aria-checked={!hidden}
+                        aria-label={`${action.label}，${hidden ? '已隐藏' : '已显示'}`}
                         onClick={() => toggleActionHidden(id)}
-                        title={hidden ? `${action.label}（已隐藏，点击显示）` : `${action.label}（点击隐藏）`}
-                        aria-label={`${action.label}，${hidden ? '已隐藏' : '已显示'}，拖动调整顺序，点击切换显示`}
                       >
-                        <span className="item-action-tile-icon">
-                          {ACTION_ICONS[id]}
-                        </span>
+                        <span className="toggle-knob" />
                       </button>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </section>
