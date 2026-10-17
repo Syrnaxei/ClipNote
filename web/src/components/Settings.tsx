@@ -116,6 +116,7 @@ function Settings({
 }: SettingsProps) {
   const [editingDevice, setEditingDevice] = useState(false);
   const [deviceDraft, setDeviceDraft] = useState(deviceName);
+  const [activeSection, setActiveSection] = useState<SectionId>('appearance');
   const mainRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
   const dragActionId = useRef<ItemActionId | null>(null);
@@ -155,6 +156,21 @@ function Settings({
     const el = sectionRefs.current[id];
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleMainScroll = () => {
+    const main = mainRef.current;
+    if (!main) return;
+    const scrollTop = main.scrollTop;
+    let current: SectionId = SECTIONS[0].id;
+    for (const { id } of SECTIONS) {
+      const el = sectionRefs.current[id];
+      if (el && el.offsetTop - 24 <= scrollTop) current = id;
+    }
+    if (scrollTop + main.clientHeight >= main.scrollHeight - 4) {
+      current = SECTIONS[SECTIONS.length - 1].id;
+    }
+    setActiveSection(current);
   };
 
   const startEditDevice = () => {
@@ -207,7 +223,7 @@ function Settings({
           {SECTIONS.map(({ id, label }) => (
             <button
               key={id}
-              className="settings-nav-item"
+              className={`settings-nav-item ${activeSection === id ? 'active' : ''}`}
               onClick={() => scrollToSection(id)}
             >
               {NAV_ICONS[id]}
@@ -218,7 +234,7 @@ function Settings({
           <span className="settings-nav-version">v{APP_VERSION}</span>
         </nav>
 
-        <div className="settings-main" ref={mainRef}>
+        <div className="settings-main" ref={mainRef} onScroll={handleMainScroll}>
           <section
             className="settings-section"
             ref={(el) => {

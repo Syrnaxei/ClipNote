@@ -475,3 +475,41 @@
   opacity: 0.45;
   border-style: dashed;
 }
+
+html.mobile .settings-topbar {
+  padding: 14px 14px 4px;
+}
+
+html.mobile .settings-body {
+  flex-direction: column;
+}
+
+html.mobile .settings-nav {
+  width: auto;
+  flex-direction: row;
+  gap: 4px;
+  padding: 8px 14px 10px;
+  border-right: none;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+html.mobile .settings-nav-item {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+html.mobile .settings-nav-spacer,
+html.mobile .settings-nav-version {
+  display: none;
+}
+
+html.mobile .settings-main {
+  padding: 12px 14px 22px;
+}
+
+html.mobile .settings-row {
+  flex-wrap: wrap;
+}
