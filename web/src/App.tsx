@@ -380,6 +380,11 @@ function App() {
     setDupGroups(null);
   }, [activeId]);
 
+  const usableToolbarPlugins = useMemo(
+    () => toolbarPlugins.filter((p) => trustedKeys.includes(trustKeyOf(p))),
+    [toolbarPlugins, trustedKeys],
+  );
+
   if (!authed) {
     return (
       <KeyGate
@@ -389,11 +394,6 @@ function App() {
       />
     );
   }
-
-  const usableToolbarPlugins = useMemo(
-    () => toolbarPlugins.filter((p) => trustedKeys.includes(trustKeyOf(p))),
-    [toolbarPlugins, trustedKeys],
-  );
 
   return (
     <div className="app">
