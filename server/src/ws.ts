@@ -29,6 +29,9 @@ export function initWs(server: Server): void {
       return;
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
+      ws.on('error', (err) => {
+        console.error('ws client error:', (err as Error).message);
+      });
       ws.on('pong', () => alive.add(ws));
       alive.add(ws);
       wss.emit('connection', ws, req);
