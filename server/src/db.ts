@@ -74,13 +74,6 @@ if (!itemColumns.includes('device_type')) {
   db.exec('ALTER TABLE clipboard_items ADD COLUMN device_type TEXT');
 }
 
-const existingPluginColumns = (
-  db.pragma('table_info(plugins)') as { name: string }[]
-).map((col) => col.name);
-if (existingPluginColumns.length > 0 && !existingPluginColumns.includes('slug')) {
-  db.exec('ALTER TABLE plugins RENAME TO plugins_legacy');
-}
-
 db.exec(`
   CREATE TABLE IF NOT EXISTS plugins (
     slug        TEXT    PRIMARY KEY,
@@ -98,6 +91,98 @@ db.exec(`
   );
 `);
 
+const pluginColumns = (
+  db.pragma('table_info(plugins)') as { name: string }[]
+).map((col) => col.name);
+
+function migrateLegacyPlugins(): void {
+  const legacyCols = db.pragma('table_info(plugins_legacy)') as { name: string }[];
+  if (legacyCols.length === 0) return;
+  db.transaction(() => {
+    const legacyRows = db
+      .prepare(
+        'SELECT name, author, version, description, code, enabled, created_at FROM plugins_legacy',
+      )
+      .all() as {
+      name: string;
+      author: string;
+      version: string;
+      description: string;
+      code: string;
+      enabled: number;
+      created_at: string;
+    }[];
+    const insert = db.prepare(
+      `INSERT INTO plugins (slug, name, author, version, description, github_url, code, enabled, created_at)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
+    );
+    // 去重以库内已有 slug 为准，迁移重跑（例如上次在 DROP 前崩溃）不会撞主键。
+    const used = new Set(
+      (db.prepare('SELECT slug FROM plugins').all() as { slug: string }[]).map(
+        (r) => r.slug,
+      ),
+    );
+    for (const row of legacyRows) {
+      let base = row.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 64);
+      if (!base) base = 'plugin';
+      let slug = base;
+      let n = 2;
+      while (used.has(slug)) slug = `${base}-${n++}`;
+      used.add(slug);
+      insert.run(
+        slug,
+        row.name,
+        row.author,
+        row.version,
+        row.description,
+        row.code,
+        row.enabled,
+        row.created_at,
+      );
+    }
+    db.exec('DROP TABLE plugins_legacy');
+  })();
+}
+
+if (pluginColumns.length > 0 && !pluginColumns.includes('slug')) {
+  // 旧表仍在。若存在更早一次中断残留的 plugins_legacy，先挪到临时名给旧表让位，
+  // 两批数据依次迁移，避免 rename 撞名崩溃，也不丢残留数据。
+  const staleLegacy = db.pragma('table_info(plugins_legacy)') as { name: string }[];
+  if (staleLegacy.length > 0) {
+    db.exec('DROP TABLE IF EXISTS plugins_legacy_stale');
+    db.exec('ALTER TABLE plugins_legacy RENAME TO plugins_legacy_stale');
+  }
+  db.exec('ALTER TABLE plugins RENAME TO plugins_legacy');
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS plugins (
+      slug        TEXT    PRIMARY KEY,
+      name        TEXT    NOT NULL,
+      author      TEXT    NOT NULL,
+      version     TEXT    NOT NULL,
+      description TEXT    NOT NULL,
+      github_url  TEXT,
+      code        TEXT    NOT NULL,
+      type        TEXT    NOT NULL DEFAULT 'text-transform',
+      regex       TEXT,
+      button_name TEXT,
+      enabled     INTEGER NOT NULL DEFAULT 0,
+      created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+  `);
+  migrateLegacyPlugins();
+  if (staleLegacy.length > 0) {
+    db.exec('ALTER TABLE plugins_legacy_stale RENAME TO plugins_legacy');
+    migrateLegacyPlugins();
+  }
+} else {
+  // rename 已完成但未迁移的残留（上次迁移在 DROP 前崩溃），迁完收尾。
+  migrateLegacyPlugins();
+}
+
 const currentPluginColumns = db.pragma('table_info(plugins)') as { name: string }[];
 if (currentPluginColumns.length > 0 && !currentPluginColumns.some((c) => c.name === 'type')) {
   db.exec(
@@ -105,54 +190,6 @@ if (currentPluginColumns.length > 0 && !currentPluginColumns.some((c) => c.name 
      ALTER TABLE plugins ADD COLUMN regex TEXT;
      ALTER TABLE plugins ADD COLUMN button_name TEXT;`,
   );
-}
-
-const legacyPluginColumns = (
-  db.pragma('table_info(plugins_legacy)') as { name: string }[]
-).map((col) => col.name);
-
-if (legacyPluginColumns.length > 0) {
-  const legacyRows = db
-    .prepare(
-      'SELECT name, author, version, description, code, enabled, created_at FROM plugins_legacy',
-    )
-    .all() as {
-    name: string;
-    author: string;
-    version: string;
-    description: string;
-    code: string;
-    enabled: number;
-    created_at: string;
-  }[];
-  const insert = db.prepare(
-    `INSERT INTO plugins (slug, name, author, version, description, github_url, code, enabled, created_at)
-     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
-  );
-  const used = new Set<string>();
-  for (const row of legacyRows) {
-    let base = row.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 64);
-    if (!base) base = 'plugin';
-    let slug = base;
-    let n = 2;
-    while (used.has(slug)) slug = `${base}-${n++}`;
-    used.add(slug);
-    insert.run(
-      slug,
-      row.name,
-      row.author,
-      row.version,
-      row.description,
-      row.code,
-      row.enabled,
-      row.created_at,
-    );
-  }
-  db.exec('DROP TABLE plugins_legacy');
 }
 
 if (!itemColumns.includes('original_content')) {
