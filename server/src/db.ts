@@ -165,26 +165,31 @@ const currentItemColumns = (
   db.pragma('table_info(clipboard_items)') as { name: string }[]
 ).map((col) => col.name);
 if (currentItemColumns.includes('plugin_id')) {
-  db.exec(`
-    CREATE TABLE clipboard_items_rebuilt (
-      id           INTEGER PRIMARY KEY AUTOINCREMENT,
-      clipboard_id INTEGER NOT NULL REFERENCES clipboards(id) ON DELETE CASCADE,
-      content      TEXT    NOT NULL,
-      content_hash TEXT    NOT NULL,
-      original_content TEXT,
-      device       TEXT,
-      device_type  TEXT,
-      created_at   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-    );
-    INSERT INTO clipboard_items_rebuilt
-      (id, clipboard_id, content, content_hash, original_content, device, device_type, created_at)
-      SELECT id, clipboard_id, content, content_hash, original_content, device, device_type, created_at
-      FROM clipboard_items;
-    DROP TABLE clipboard_items;
-    ALTER TABLE clipboard_items_rebuilt RENAME TO clipboard_items;
-    CREATE INDEX IF NOT EXISTS idx_items_clipboard_time ON clipboard_items(clipboard_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_items_hash ON clipboard_items(clipboard_id, content_hash);
-  `);
+  db.transaction(() => {
+    // 上次迁移中断可能残留同名表；残留数据行会在下方 DROP 前整体作废，
+    // 因此这里先无条件清掉，避免 CREATE 直接抛错导致启动崩溃循环。
+    db.exec('DROP TABLE IF EXISTS clipboard_items_rebuilt');
+    db.exec(`
+      CREATE TABLE clipboard_items_rebuilt (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        clipboard_id INTEGER NOT NULL REFERENCES clipboards(id) ON DELETE CASCADE,
+        content      TEXT    NOT NULL,
+        content_hash TEXT    NOT NULL,
+        original_content TEXT,
+        device       TEXT,
+        device_type  TEXT,
+        created_at   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      );
+      INSERT INTO clipboard_items_rebuilt
+        (id, clipboard_id, content, content_hash, original_content, device, device_type, created_at)
+        SELECT id, clipboard_id, content, content_hash, original_content, device, device_type, created_at
+        FROM clipboard_items;
+      DROP TABLE clipboard_items;
+      ALTER TABLE clipboard_items_rebuilt RENAME TO clipboard_items;
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_items_clipboard_time ON clipboard_items(clipboard_id, created_at DESC)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_items_hash ON clipboard_items(clipboard_id, content_hash)');
+  })();
 }
 
 export default db;
