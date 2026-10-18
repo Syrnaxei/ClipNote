@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { version as APP_VERSION } from '../../package.json';
 import './Settings.css';
 import './ClipboardItem.css';
 import { PIN_STYLES, type PinStyle } from '../pinStyle';
@@ -85,7 +86,6 @@ const SECTIONS: { id: SectionId; label: string }[] = [
   { id: 'about', label: '关于' },
 ];
 
-const APP_VERSION = '1.3.0';
 const PROJECT_URL = 'https://github.com/Syrnaxei/ClipNote';
 
 const ROW_HEIGHT_FALLBACK = 48;
