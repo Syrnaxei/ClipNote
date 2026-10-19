@@ -129,6 +129,22 @@ export const pluginUpdateSchema = z
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' });
 
+// PATCH 按 existing+data 合并后的状态校验，schema 层拿不到 existing，由路由层调用。
+// 与 create 侧两条 refine 的规则保持一致，防止更新出永远不匹配的 selection-toolbar。
+export function pluginStateError(
+  type: string,
+  regex: string | null,
+  buttonName: string | null,
+): string | null {
+  if (type === 'selection-toolbar' && (!regex || !buttonName)) {
+    return 'selection-toolbar plugins require regex and button_name';
+  }
+  if (regex && !isValidRegExp(regex)) {
+    return 'regex is not a valid regular expression';
+  }
+  return null;
+}
+
 export function normalizeDevice(device?: string, deviceType?: string) {
   if (device === undefined && deviceType === undefined) {
     return { device: null, device_type: null };

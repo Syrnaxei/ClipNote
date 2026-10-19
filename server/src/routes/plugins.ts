@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { ApiError } from '../auth.js';
-import { pluginSlugParamSchema, pluginCreateSchema, pluginUpdateSchema } from '../validation.js';
+import { pluginSlugParamSchema, pluginCreateSchema, pluginUpdateSchema, pluginStateError } from '../validation.js';
 
 const router = Router();
 
@@ -37,6 +37,11 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const data = pluginCreateSchema.parse(req.body);
+  // 静默 upsert 会在同 id 同版本下换掉代码而不触发重新信任，重复导入必须显式确认。
+  const exists = db.prepare('SELECT 1 FROM plugins WHERE slug = ?').get(data.id);
+  if (exists) {
+    throw new ApiError(409, 'PLUGIN_EXISTS', `Plugin "${data.id}" already exists, delete it or use PATCH to overwrite`);
+  }
   const githubUrl = data.github_url ?? null;
   const enabled = data.enabled === true ? 1 : 0;
   if (enabled && (data.type ?? 'text-transform') === 'text-transform') {
@@ -44,18 +49,7 @@ router.post('/', (req, res) => {
   }
   db.prepare(
     `INSERT INTO plugins (slug, name, author, version, description, github_url, code, type, regex, button_name, enabled)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(slug) DO UPDATE SET
-       name = excluded.name,
-       author = excluded.author,
-       version = excluded.version,
-       description = excluded.description,
-       github_url = excluded.github_url,
-       code = excluded.code,
-       type = excluded.type,
-       regex = excluded.regex,
-       button_name = excluded.button_name,
-       enabled = excluded.enabled`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     data.id,
     data.name,
@@ -81,6 +75,13 @@ router.patch('/:id', (req, res) => {
   const existing = getPluginOrThrow(id);
   const enabled = data.enabled === undefined ? (existing.enabled as number) : data.enabled ? 1 : 0;
   const type = data.type ?? (existing.type as string) ?? 'text-transform';
+  const regex = data.regex === undefined ? (existing.regex as string | null) : (data.regex ?? null);
+  const buttonName =
+    data.button_name === undefined ? (existing.button_name as string | null) : (data.button_name ?? null);
+  const stateError = pluginStateError(type, regex, buttonName);
+  if (stateError) {
+    throw new ApiError(400, 'VALIDATION_ERROR', stateError);
+  }
   if (data.enabled === true && type === 'text-transform') {
     db.prepare("UPDATE plugins SET enabled = 0 WHERE type = 'text-transform'").run();
   }
@@ -98,10 +99,8 @@ router.patch('/:id', (req, res) => {
         : data.github_url,
     data.code ?? (existing.code as string),
     type,
-    data.regex === undefined ? (existing.regex as string | null) : (data.regex ?? null),
-    data.button_name === undefined
-      ? (existing.button_name as string | null)
-      : (data.button_name ?? null),
+    regex,
+    buttonName,
     enabled,
     id,
   );

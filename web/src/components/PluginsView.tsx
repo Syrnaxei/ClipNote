@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import './PluginsView.css';
 import PopConfirm from './PopConfirm';
-import PluginTrustModal from './PluginTrustModal';
+import PluginTrustModal, { WARN_MARK } from './PluginTrustModal';
 import { api } from '../api';
-import { parseCvt, CvtParseError } from '../plugins/parseCvt';
+import { parseCvt, CvtParseError, type CvtPlugin } from '../plugins/parseCvt';
 import { setSkipTrustConfirm, shouldSkipTrustConfirm, trustKeyOf } from '../plugins/trust';
 import type { Plugin } from '../types';
 
@@ -57,6 +57,7 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [trusting, setTrusting] = useState<Plugin | null>(null);
+  const [conflict, setConflict] = useState<CvtPlugin | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isTrusted = (p: Plugin) => trustedKeys.includes(trustKeyOf(p));
@@ -119,14 +120,23 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
     setError('');
     setBusy(true);
     try {
-      const text = await file.text();
-      const { meta, code, regex, buttonName } = parseCvt(text);
-      const { plugin } = await api.createPlugin({
-        ...meta,
-        ...(regex !== undefined && buttonName !== undefined ? { regex, button_name: buttonName } : {}),
-        code,
-      });
-      await reload(plugin.id);
+      const parsed = parseCvt(await file.text());
+      try {
+        const { meta, code, regex, buttonName } = parsed;
+        await api.createPlugin({
+          ...meta,
+          ...(regex !== undefined && buttonName !== undefined ? { regex, button_name: buttonName } : {}),
+          code,
+        });
+        await reload(meta.id);
+      } catch (e) {
+        // 同 id 已存在（服务端不再静默覆盖），交由用户确认后走 PATCH 覆盖
+        if ((e as { status?: number }).status === 409) {
+          setConflict(parsed);
+          return;
+        }
+        throw e;
+      }
     } catch (e) {
       setError(
         e instanceof CvtParseError
@@ -138,6 +148,31 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const handleOverwriteConfirm = async () => {
+    if (!conflict) return;
+    const { meta, code, regex, buttonName } = conflict;
+    setError('');
+    setBusy(true);
+    setConflict(null);
+    try {
+      await api.updatePlugin(meta.id, {
+        name: meta.name,
+        author: meta.author,
+        version: meta.version,
+        description: meta.description,
+        github_url: meta.github_url,
+        code,
+        type: meta.type,
+        ...(regex !== undefined && buttonName !== undefined ? { regex, button_name: buttonName } : {}),
+      });
+      await reload(meta.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '覆盖失败');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -421,6 +456,51 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
           onConfirm={handleTrustConfirm}
           onCancel={() => setTrusting(null)}
         />
+      )}
+
+      {conflict && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setConflict(null);
+          }}
+        >
+          <div className="modal-card plugin-trust-card">
+            <div className="plugin-trust-head">
+              <span className="plugin-trust-warn-icon">{WARN_MARK}</span>
+              <div>
+                <h3 className="modal-title">覆盖「{conflict.meta.name}」？</h3>
+                <p className="plugin-trust-source">
+                  已存在相同 id 的插件（当前 v
+                  {plugins.find((p) => p.id === conflict.meta.id)?.version ?? '?'}），将替换为文件中的 v
+                  {conflict.meta.version}
+                </p>
+              </div>
+            </div>
+            <ul className="plugin-trust-risks">
+              <li className="plugin-trust-risk">
+                <span className="plugin-trust-risk-title">代码与信息将被整体替换</span>
+                <span className="plugin-trust-risk-detail">
+                  插件的代码、作者、版本等全部以新文件为准；若代码发生变化，原有信任将失效，需重新确认信任后才能继续使用。
+                </span>
+              </li>
+            </ul>
+            <div className="plugin-trust-footer">
+              <div className="modal-actions">
+                <button className="modal-cancel" onClick={() => setConflict(null)}>
+                  取消
+                </button>
+                <button
+                  className="modal-confirm plugin-trust-confirm"
+                  disabled={busy}
+                  onClick={handleOverwriteConfirm}
+                >
+                  覆盖
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
