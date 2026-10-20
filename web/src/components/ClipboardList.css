@@ -325,6 +325,110 @@ html.mobile .add-item-input {
   background: var(--border-strong);
 }
 
+/* ── 条目进出场：容器高度参与动画，让列表整体让位 / 收回 ── */
+
+.item-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--dur-list-out) var(--ease-paper);
+}
+
+.item-slot-inner {
+  min-height: 0;
+}
+
+.item-slot.is-entering,
+.item-slot.is-exiting {
+  overflow: hidden;
+}
+
+.item-slot.is-entering {
+  animation: item-slot-open var(--dur-list-in) var(--ease-paper);
+}
+
+.item-slot.is-entering .clipboard-item-content {
+  animation: item-fall var(--dur-list-in) var(--ease-paper);
+}
+
+.item-slot.is-exiting {
+  grid-template-rows: 0fr;
+}
+
+.item-slot.is-exiting .item-slot-inner {
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 120ms var(--ease-paper);
+}
+
+@keyframes item-slot-open {
+  from {
+    grid-template-rows: 0fr;
+  }
+  to {
+    grid-template-rows: 1fr;
+  }
+}
+
+@keyframes item-fall {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.985);
+  }
+  55% {
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── 加载骨架屏 ── */
+
+.clipboard-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 18px 18px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.skeleton-line {
+  display: block;
+  height: 13px;
+  border-radius: 6px;
+  background-image: linear-gradient(
+    90deg,
+    var(--surface-2) 0%,
+    var(--surface-3) 45%,
+    var(--surface-2) 90%
+  );
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.5s linear infinite;
+}
+
+.skeleton-meta {
+  width: 32%;
+  height: 8px;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -80% 0;
+  }
+}
+
 .empty-state {
   text-align: center;
   padding: 60px 20px;

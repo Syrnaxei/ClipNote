@@ -5,7 +5,23 @@ import ClipboardItemView from './ClipboardItem';
 import ClipboardEditModal from './ClipboardEditModal';
 import PluginConfirmModal from './PluginConfirmModal';
 import PopConfirm from './PopConfirm';
+import { useItemTransitions } from '../useItemTransitions';
 import './ClipboardList.css';
+
+function ClipboardListSkeleton() {
+  const widths = ['78%', '64%', '72%'];
+  return (
+    <div className="clipboard-skeleton" role="status" aria-busy="true">
+      <span className="sr-only">加载中…</span>
+      {widths.map((width, index) => (
+        <div className="skeleton-card" key={index} aria-hidden="true">
+          <span className="skeleton-line" style={{ width }} />
+          <span className="skeleton-line skeleton-meta" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface ClipboardListProps {
   clipboard: Clipboard | null;
@@ -116,6 +132,8 @@ function ClipboardList({
   const duplicateIds = new Set(
     dupGroups?.flatMap((group) => group.items.map((item) => item.id)) ?? [],
   );
+
+  const renderItems = useItemTransitions(items);
 
   const doCopyName = async () => {
     if (clipboard === null) return;
@@ -228,7 +246,7 @@ function ClipboardList({
       )}
 
       <div className="clipboard-items">
-        {loading && <div className="empty-state"><p>加载中...</p></div>}
+        {loading && <ClipboardListSkeleton />}
         {loadError && (
           <div className="empty-state">
             <p>条目加载失败</p>
@@ -238,20 +256,28 @@ function ClipboardList({
           </div>
         )}
         {!loading && !loadError &&
-          items.map((item) => (
-            <ClipboardItemView
+          renderItems.map(({ item, entering, exiting }) => (
+            <div
               key={item.id}
-              item={item}
-              duplicate={duplicateIds.has(item.id)}
-              pluginName={activePlugin?.name ?? null}
-              itemActions={itemActions}
-              clipboards={clipboards}
-              onDelete={onDeleteItem}
-              onEdit={onEditItem}
-              onMove={onMoveItem}
-              onCopy={onCopyItem}
-              onPlugin={setPluginTarget}
-            />
+              className={`item-slot${entering ? ' is-entering' : ''}${
+                exiting ? ' is-exiting' : ''
+              }`}
+            >
+              <div className="item-slot-inner">
+                <ClipboardItemView
+                  item={item}
+                  duplicate={duplicateIds.has(item.id)}
+                  pluginName={activePlugin?.name ?? null}
+                  itemActions={itemActions}
+                  clipboards={clipboards}
+                  onDelete={onDeleteItem}
+                  onEdit={onEditItem}
+                  onMove={onMoveItem}
+                  onCopy={onCopyItem}
+                  onPlugin={setPluginTarget}
+                />
+              </div>
+            </div>
           ))}
         {!loading && !loadError && items.length === 0 && (
           <div className="empty-state">

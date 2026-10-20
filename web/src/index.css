@@ -10,6 +10,19 @@ code {
   font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
 }
 
+/* 只给读屏用的文字 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 :root {
   --bg: #f5f4ed;
   --surface: #faf9f5;
