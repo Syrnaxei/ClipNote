@@ -79,6 +79,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [clipboards, setClipboards] = useState<Clipboard[]>([]);
   const [itemsByClipboard, setItemsByClipboard] = useState<Record<number, ClipboardItem[]>>({});
+  const [failedItemLoads, setFailedItemLoads] = useState<ReadonlySet<number>>(new Set());
   const [activeId, setActiveId] = useState<number | null>(null);
   const [dupGroups, setDupGroups] = useState<DuplicateGroup[] | null>(null);
   const [activePlugin, setActivePlugin] = useState<Plugin | null>(null);
@@ -277,13 +278,21 @@ function App() {
   }, [authed, refreshAll, refreshAggregates, refreshActivePlugin]);
 
   useEffect(() => {
-    if (activeId !== null && itemsByClipboard[activeId] === undefined) {
+    if (
+      activeId !== null &&
+      itemsByClipboard[activeId] === undefined &&
+      !failedItemLoads.has(activeId)
+    ) {
       api
         .listItems(activeId)
         .then(({ items }) => setItemsByClipboard((prev) => ({ ...prev, [activeId]: items })))
-        .catch(() => {});
+        .catch(() => {
+          setFailedItemLoads((prev) =>
+            prev.has(activeId) ? prev : new Set(prev).add(activeId),
+          );
+        });
     }
-  }, [activeId, itemsByClipboard]);
+  }, [activeId, itemsByClipboard, failedItemLoads]);
 
   const handleAddClipboard = async (name: string) => {
     await api.createClipboard(name);
@@ -375,6 +384,17 @@ function App() {
   };
 
   const activeItems = activeId !== null ? itemsByClipboard[activeId] : undefined;
+  const activeLoadFailed =
+    activeId !== null && activeItems === undefined && failedItemLoads.has(activeId);
+
+  const retryLoadItems = () => {
+    setFailedItemLoads((prev) => {
+      if (activeId === null || !prev.has(activeId)) return prev;
+      const next = new Set(prev);
+      next.delete(activeId);
+      return next;
+    });
+  };
 
   useEffect(() => {
     setDupGroups(null);
@@ -440,7 +460,9 @@ function App() {
             clipboard={clipboards.find((c) => c.id === activeId) ?? null}
             clipboards={clipboards}
             items={activeItems ?? []}
-            loading={activeId !== null && activeItems === undefined}
+            loading={activeId !== null && activeItems === undefined && !activeLoadFailed}
+            loadError={activeLoadFailed}
+            onRetryLoad={retryLoadItems}
             dupGroups={dupGroups}
             activePlugin={activePlugin}
             itemActions={itemActions}

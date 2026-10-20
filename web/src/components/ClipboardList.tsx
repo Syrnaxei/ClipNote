@@ -12,6 +12,8 @@ interface ClipboardListProps {
   clipboards: Clipboard[];
   items: ClipboardItem[];
   loading: boolean;
+  loadError: boolean;
+  onRetryLoad: () => void;
   dupGroups: DuplicateGroup[] | null;
   activePlugin: Plugin | null;
   itemActions: ItemActionSetting;
@@ -33,6 +35,8 @@ function ClipboardList({
   clipboards,
   items,
   loading,
+  loadError,
+  onRetryLoad,
   dupGroups,
   activePlugin,
   itemActions,
@@ -224,7 +228,15 @@ function ClipboardList({
 
       <div className="clipboard-items">
         {loading && <div className="empty-state"><p>加载中...</p></div>}
-        {!loading &&
+        {loadError && (
+          <div className="empty-state">
+            <p>条目加载失败</p>
+            <button className="load-retry-button" onClick={onRetryLoad}>
+              重试
+            </button>
+          </div>
+        )}
+        {!loading && !loadError &&
           items.map((item) => (
             <ClipboardItemView
               key={item.id}
@@ -240,7 +252,7 @@ function ClipboardList({
               onPlugin={setPluginTarget}
             />
           ))}
-        {!loading && items.length === 0 && (
+        {!loading && !loadError && items.length === 0 && (
           <div className="empty-state">
             <p>暂无内容，在下方输入框添加</p>
           </div>

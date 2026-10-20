@@ -338,3 +338,18 @@ html.mobile .add-item-input {
   margin: 0;
   font-size: 15px;
 }
+
+.load-retry-button {
+  margin-top: 14px;
+  padding: 7px 24px;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--accent);
+  color: var(--on-accent);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.load-retry-button:hover {
+  opacity: 0.9;
+}
