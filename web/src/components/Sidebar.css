@@ -4,7 +4,8 @@
   background-color: var(--bg);
   border-right: 1px solid var(--border);
   overflow: hidden;
-  transition: width 0.2s ease;
+  transition: width var(--dur-base) var(--ease-paper),
+    border-color var(--dur-base) var(--ease-paper);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -20,6 +21,11 @@
   display: flex;
   flex-direction: column;
   padding: 16px;
+  transition: opacity 160ms var(--ease-paper);
+}
+
+.sidebar.collapsed .sidebar-inner {
+  opacity: 0;
 }
 
 .search-box {
@@ -341,5 +347,15 @@ html.mobile .sidebar-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1040;
-  background-color: rgba(0, 0, 0, 0.4);
+  background-color: var(--scrim);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-paper);
+}
+
+html.mobile .sidebar-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
 }

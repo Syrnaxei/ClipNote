@@ -6,6 +6,7 @@ import ClipboardEditModal from './ClipboardEditModal';
 import PluginConfirmModal from './PluginConfirmModal';
 import PopConfirm from './PopConfirm';
 import { useItemTransitions } from '../useItemTransitions';
+import { MOTION, motionDelay } from '../motion';
 import './ClipboardList.css';
 
 function ClipboardListSkeleton() {
@@ -77,6 +78,19 @@ function ClipboardList({
   const actionsRef = useRef<HTMLDivElement>(null);
   const addItemInputRef = useRef<HTMLTextAreaElement>(null);
   const nameCopyTimerRef = useRef<number>(0);
+  const itemsRef = useRef<HTMLDivElement>(null);
+  const [switching, setSwitching] = useState(false);
+
+  /* 切换剪切板：内容先淡出，滚动位置复位后再淡入（合计 220ms） */
+  useEffect(() => {
+    setSwitching(true);
+    const timer = window.setTimeout(() => {
+      const el = itemsRef.current;
+      if (el) el.scrollTop = 0;
+      setSwitching(false);
+    }, motionDelay(MOTION.switchOut));
+    return () => window.clearTimeout(timer);
+  }, [clipboard?.id]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -245,7 +259,10 @@ function ClipboardList({
         </div>
       )}
 
-      <div className="clipboard-items">
+      <div
+        className={`clipboard-items ${switching ? 'is-switching' : ''}`}
+        ref={itemsRef}
+      >
         {loading && <ClipboardListSkeleton />}
         {loadError && (
           <div className="empty-state">

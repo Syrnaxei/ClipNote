@@ -77,8 +77,12 @@ function Sidebar({
 
   return (
     <>
-      {!collapsed && onRequestClose && (
-        <div className="sidebar-backdrop" onClick={onRequestClose} />
+      {onRequestClose && (
+        <div
+          className={`sidebar-backdrop ${collapsed ? '' : 'is-open'}`}
+          onClick={onRequestClose}
+          role="presentation"
+        />
       )}
       <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-inner">

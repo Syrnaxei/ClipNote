@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { version as APP_VERSION } from '../../package.json';
 import './Settings.css';
 import './ClipboardItem.css';
+import { prefersReducedMotion } from '../motion';
 import { PIN_STYLES, type PinStyle } from '../pinStyle';
 import {
   ITEM_ACTIONS,
@@ -122,6 +123,9 @@ function Settings({
   const [deviceDraft, setDeviceDraft] = useState(deviceName);
   const [activeSection, setActiveSection] = useState<SectionId>('appearance');
   const mainRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const scrollLockRef = useRef(0);
+  const [navIndicator, setNavIndicator] = useState({ top: 0, height: 0 });
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -136,6 +140,17 @@ function Settings({
   });
   const itemActionsRef = useRef(itemActions);
   itemActionsRef.current = itemActions;
+
+  /* 设置导航的滑动指示块：跟着选中项走，位置关系一直可见 */
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const item = nav.querySelector<HTMLElement>(
+      `.settings-nav-item[data-section="${activeSection}"]`,
+    );
+    if (!item) return;
+    setNavIndicator({ top: item.offsetTop, height: item.offsetHeight });
+  }, [activeSection]);
 
   useEffect(() => {
     if (dragIndex === null) return;
@@ -239,12 +254,19 @@ function Settings({
   const scrollToSection = (id: SectionId) => {
     const el = sectionRefs.current[id];
     if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // 点哪一项指示块就先滑到哪，滚动过程中不让 scrollspy 来回改
+    setActiveSection(id);
+    scrollLockRef.current = Date.now() + 420;
+    el.scrollIntoView({
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+      block: 'start',
+    });
   };
 
   const handleMainScroll = () => {
     const main = mainRef.current;
     if (!main) return;
+    if (Date.now() < scrollLockRef.current) return;
     const scrollTop = main.scrollTop;
     let current: SectionId = SECTIONS[0].id;
     for (const { id } of SECTIONS) {
@@ -287,10 +309,16 @@ function Settings({
       </div>
 
       <div className="settings-body">
-        <nav className="settings-nav" aria-label="设置分区">
+        <nav className="settings-nav" aria-label="设置分区" ref={navRef}>
+          <span
+            className="settings-nav-indicator"
+            aria-hidden="true"
+            style={{ top: navIndicator.top, height: navIndicator.height }}
+          />
           {SECTIONS.map(({ id, label }) => (
             <button
               key={id}
+              data-section={id}
               className={`settings-nav-item ${activeSection === id ? 'active' : ''}`}
               onClick={() => scrollToSection(id)}
             >
