@@ -31,6 +31,26 @@ code {
   --radius-card: 12px;
   --radius-btn: 12px;
   --pin-mark: #c96442;
+
+  /* 动效语言「纸张余韵」 */
+  --ease-paper: cubic-bezier(0.22, 0.68, 0.32, 1);
+  --dur-fast: 140ms;
+  --dur-base: 200ms;
+  --dur-exit: 180ms;
+  --dur-view-out: 90ms;
+  --dur-view-in: 180ms;
+  --dur-list-in: 300ms;
+  --dur-list-out: 180ms;
+  --dur-nav: 220ms;
+
+  /* 浮层 */
+  --scrim: rgba(20, 20, 19, 0.3);
+  --blur-scrim: 6px;
+  --blur-float: 8px;
+  --glass: rgba(250, 249, 245, 0.72);
+  --glass-border: rgba(20, 20, 19, 0.08);
+
+  color-scheme: light;
 }
 
 :root[data-theme='dark'] {
@@ -51,12 +71,39 @@ code {
   --ring: #4d4c48;
   --whisper: rgba(0, 0, 0, 0.4) 0px 4px 24px;
   --pin-mark: #d97757;
+
+  --scrim: rgba(0, 0, 0, 0.34);
+  --glass: rgba(38, 38, 36, 0.72);
+  --glass-border: rgba(250, 249, 245, 0.1);
+
+  color-scheme: dark;
+}
+
+/* 主题底色铺到根元素，避免 iOS 回弹时露白 */
+html {
+  background-color: var(--bg);
 }
 
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+[role='switch']:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
+}
+
+/* 系统开启「减少动态效果」时，全部过渡与关键帧退化为瞬切 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
 }
 
 .key-gate {
