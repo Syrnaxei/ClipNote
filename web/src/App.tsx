@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './App.css';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -19,6 +19,7 @@ import {
 import type { Clipboard, ClipboardItem, DuplicateGroup, Plugin, WsEvent } from './types';
 import { migrateStorageKey } from './storage';
 import { MOTION, motionDelay } from './motion';
+import { revealTheme } from './viewTransition';
 
 type Theme = 'light' | 'dark';
 
@@ -76,6 +77,8 @@ function App() {
     () => localStorage.getItem(DEVICE_NAME_KEY) ?? '我的电脑',
   );
   const [view, setView] = useState<'main' | 'settings' | 'plugins'>('main');
+  const [renderedView, setRenderedView] = useState<'main' | 'settings' | 'plugins'>('main');
+  const [viewLeaving, setViewLeaving] = useState(false);
   const [isMobile] = useState(isMobileDevice);
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [clipboards, setClipboards] = useState<Clipboard[]>([]);
@@ -102,10 +105,31 @@ function App() {
     }
   }, [isMobile]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  const syncTheme = useCallback(
+    (next: Theme, origin?: { x: number; y: number }) => {
+      revealTheme(() => setTheme(next), origin ?? null);
+    },
+    [],
+  );
+
+  /* 视图切换：旧视图先退 90ms，新视图再浮入 180ms（CSS 负责浮入） */
+  useEffect(() => {
+    if (view === renderedView) {
+      setViewLeaving(false);
+      return;
+    }
+    setViewLeaving(true);
+    const timer = window.setTimeout(() => {
+      setRenderedView(view);
+      setViewLeaving(false);
+    }, motionDelay(MOTION.viewOut));
+    return () => window.clearTimeout(timer);
+  }, [view, renderedView]);
 
   useEffect(() => {
     savePinStyle(pinStyle);
@@ -445,10 +469,14 @@ function App() {
         pluginsOpen={view === 'plugins'}
         onTogglePlugins={() => setView((v) => (v === 'plugins' ? 'main' : 'plugins'))}
       />
-      {view === 'settings' ? (
+      <div
+        key={renderedView}
+        className={`view-frame ${viewLeaving ? 'is-leaving' : ''}`}
+      >
+      {renderedView === 'settings' ? (
         <Settings
           theme={theme}
-          onThemeChange={setTheme}
+          onThemeChange={syncTheme}
           pinStyle={pinStyle}
           onPinStyleChange={setPinStyle}
           deviceName={deviceName}
@@ -463,7 +491,7 @@ function App() {
             setView('main');
           }}
         />
-      ) : view === 'plugins' ? (
+      ) : renderedView === 'plugins' ? (
         <PluginsView onBack={() => setView('main')} />
       ) : (
         <div className="main-container">
@@ -505,6 +533,7 @@ function App() {
           />
         </div>
       )}
+      </div>
 
       {notice && (
         <div

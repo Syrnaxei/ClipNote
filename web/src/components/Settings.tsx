@@ -93,7 +93,7 @@ const ROW_EASE = 'transform 250ms cubic-bezier(0.65, 0, 0.35, 1)';
 
 interface SettingsProps {
   theme: 'light' | 'dark';
-  onThemeChange: (theme: 'light' | 'dark') => void;
+  onThemeChange: (theme: 'light' | 'dark', origin?: { x: number; y: number }) => void;
   pinStyle: PinStyle;
   onPinStyleChange: (style: PinStyle) => void;
   deviceName: string;
@@ -321,7 +321,13 @@ function Settings({
                   role="switch"
                   aria-checked={theme === 'dark'}
                   aria-label="夜间模式"
-                  onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    onThemeChange(theme === 'dark' ? 'light' : 'dark', {
+                      x: rect.left + rect.width / 2,
+                      y: rect.top + rect.height / 2,
+                    });
+                  }}
                 >
                   <span className="toggle-knob" />
                 </button>

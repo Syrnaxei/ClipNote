@@ -106,6 +106,20 @@ a:focus-visible,
   }
 }
 
+/* 主题圆形扩散：接管 View Transition 的默认交叉淡入 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(root) {
+  opacity: 1;
+}
+
+::view-transition-new(root) {
+  opacity: 1;
+}
+
 .key-gate {
   display: flex;
   align-items: center;

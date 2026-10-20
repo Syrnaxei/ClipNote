@@ -16,6 +16,39 @@
   overflow: hidden;
 }
 
+/* 视图切换：旧视图退 90ms，新视图从下方 6px 浮入 180ms */
+.view-frame {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  animation: view-in var(--dur-view-in) var(--ease-paper);
+}
+
+.view-frame > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.view-frame.is-leaving {
+  animation: view-out var(--dur-view-out) var(--ease-paper) forwards;
+  pointer-events: none;
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes view-out {
+  to {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
 .notice-toast {
   position: fixed;
   bottom: 24px;
