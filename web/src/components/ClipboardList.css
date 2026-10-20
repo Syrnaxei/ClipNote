@@ -306,7 +306,7 @@ html.mobile .add-item-input {
   flex: 1;
   overflow-y: auto;
   padding-right: 6px;
-  transition: opacity var(--dur-fast) var(--ease-paper);
+  transition: opacity 130ms var(--ease-paper);
 }
 
 /* 切换剪切板：先退 90ms，滚动复位后再用 130ms 淡入 */

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Clipboard, ClipboardItem, DuplicateGroup, Plugin } from '../types';
 import type { ItemActionSetting } from '../itemActions';
 import ClipboardItemView from './ClipboardItem';
@@ -81,16 +81,64 @@ function ClipboardList({
   const itemsRef = useRef<HTMLDivElement>(null);
   const [switching, setSwitching] = useState(false);
 
-  /* 切换剪切板：内容先淡出，滚动位置复位后再淡入（合计 220ms） */
-  useEffect(() => {
+  /*
+   * 切换剪切板：旧内容先淡出 90ms，换上新内容并复位滚动位置后再淡入 130ms。
+   * 展示层读 shown 快照，内容在淡出结束的那一刻才真正换掉——否则新列表会先闪一帧
+   * 再整体淡出，看上去像是抖动。
+   */
+  const activeBoardId = clipboard?.id ?? null;
+  const [shown, setShown] = useState({
+    id: activeBoardId,
+    name: clipboard?.name ?? null,
+    items,
+    loading,
+    loadError,
+  });
+  const latestRef = useRef({
+    id: activeBoardId,
+    name: clipboard?.name ?? null,
+    items,
+    loading,
+    loadError,
+  });
+  latestRef.current = {
+    id: activeBoardId,
+    name: clipboard?.name ?? null,
+    items,
+    loading,
+    loadError,
+  };
+  const swapTimerRef = useRef(0);
+
+  useEffect(() => () => window.clearTimeout(swapTimerRef.current), []);
+
+  useLayoutEffect(() => {
+    if (shown.id === activeBoardId) {
+      if (
+        shown.items !== items ||
+        shown.loading !== loading ||
+        shown.loadError !== loadError ||
+        shown.name !== (clipboard?.name ?? null)
+      ) {
+        setShown({ ...latestRef.current });
+      }
+      return;
+    }
+    // 正在淡出：交给定时器收尾（期间又点了别的剪切板，收尾时取最新值）
+    if (swapTimerRef.current !== 0) return;
+    // 首次选中 / 取消选中不做淡入淡出
+    if (shown.id === null || activeBoardId === null) {
+      setShown({ ...latestRef.current });
+      return;
+    }
     setSwitching(true);
-    const timer = window.setTimeout(() => {
-      const el = itemsRef.current;
-      if (el) el.scrollTop = 0;
+    swapTimerRef.current = window.setTimeout(() => {
+      swapTimerRef.current = 0;
+      setShown({ ...latestRef.current });
       setSwitching(false);
+      if (itemsRef.current) itemsRef.current.scrollTop = 0;
     }, motionDelay(MOTION.switchOut));
-    return () => window.clearTimeout(timer);
-  }, [clipboard?.id]);
+  }, [activeBoardId, clipboard?.name, items, loading, loadError, shown]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -147,7 +195,7 @@ function ClipboardList({
     dupGroups?.flatMap((group) => group.items.map((item) => item.id)) ?? [],
   );
 
-  const renderItems = useItemTransitions(items);
+  const renderItems = useItemTransitions(shown.items, shown.id);
 
   const doCopyName = async () => {
     if (clipboard === null) return;
@@ -162,7 +210,7 @@ function ClipboardList({
     <div className="clipboard-list-container">
       <div className="clipboard-list-header">
         <div className="header-title-group">
-          <h2>{clipboard?.name ?? '未选择剪切板'}</h2>
+          <h2>{shown.name ?? '未选择剪切板'}</h2>
           {clipboard !== null && (
             <button
               className={`header-copy-button ${nameCopied ? 'copied' : ''}`}
@@ -263,8 +311,8 @@ function ClipboardList({
         className={`clipboard-items ${switching ? 'is-switching' : ''}`}
         ref={itemsRef}
       >
-        {loading && <ClipboardListSkeleton />}
-        {loadError && (
+        {shown.loading && <ClipboardListSkeleton />}
+        {shown.loadError && (
           <div className="empty-state">
             <p>条目加载失败</p>
             <button className="load-retry-button" onClick={onRetryLoad}>
@@ -272,7 +320,7 @@ function ClipboardList({
             </button>
           </div>
         )}
-        {!loading && !loadError &&
+        {!shown.loading && !shown.loadError &&
           renderItems.map(({ item, entering, exiting }) => (
             <div
               key={item.id}
@@ -296,7 +344,7 @@ function ClipboardList({
               </div>
             </div>
           ))}
-        {!loading && !loadError && items.length === 0 && renderItems.length === 0 && (
+        {!shown.loading && !shown.loadError && shown.items.length === 0 && renderItems.length === 0 && (
           <div className="empty-state">
             <p>暂无内容，在下方输入框添加</p>
           </div>
