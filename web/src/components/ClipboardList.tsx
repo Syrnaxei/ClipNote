@@ -17,7 +17,7 @@ interface ClipboardListProps {
   dupGroups: DuplicateGroup[] | null;
   activePlugin: Plugin | null;
   itemActions: ItemActionSetting;
-  onAddItem: (content: string) => void;
+  onAddItem: (content: string) => Promise<boolean>;
   onDeleteItem: (id: number) => void;
   onEditItem: (id: number, newContent: string) => void;
   onMoveItem: (id: number, targetClipboardId: number) => Promise<void>;
@@ -104,10 +104,11 @@ function ClipboardList({
     el.style.height = `${target}px`;
   }, [newContent, expanded]);
 
-  const submitNewItem = () => {
+  const submitNewItem = async () => {
     const content = newContent.trim();
     if (!content || clipboard === null) return;
-    onAddItem(content);
+    const ok = await onAddItem(content);
+    if (!ok) return;
     setNewContent('');
     setExpanded(false);
   };

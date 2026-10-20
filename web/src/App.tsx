@@ -311,15 +311,21 @@ function App() {
     await api.setClipboardPinned(id, pinned);
   };
 
-  const handleAddItem = async (content: string) => {
+  const handleAddItem = async (content: string): Promise<boolean> => {
     const clipboard = clipboards.find((c) => c.id === activeId);
-    if (!clipboard) return;
+    if (!clipboard) return false;
     const device = deviceName.trim();
-    await api.createItem(
-      clipboard.uuid,
-      content,
-      device ? { device, device_type: 'Web' } : undefined,
-    );
+    try {
+      await api.createItem(
+        clipboard.uuid,
+        content,
+        device ? { device, device_type: 'Web' } : undefined,
+      );
+      return true;
+    } catch {
+      showNotice({ text: '添加失败，请重试' });
+      return false;
+    }
   };
 
   const handleEditItem = async (id: number, newContent: string) => {
