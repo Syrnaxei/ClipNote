@@ -173,6 +173,7 @@ function SelectionToolbar({ plugins, onNotice }: SelectionToolbarProps) {
       const message = await runToolbarPlugin(
         plugins.find((p) => p.id === plugin.id)?.code ?? '',
         input,
+        plugin.id,
       );
       onNotice({ text: message ?? `已执行「${plugin.buttonName}」` });
     } catch (err) {

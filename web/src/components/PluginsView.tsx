@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import './PluginsView.css';
 import PopConfirm from './PopConfirm';
-import PluginTrustModal, { WARN_MARK } from './PluginTrustModal';
+import { WARN_MARK } from './PluginTrustModal';
 import { api } from '../api';
 import { parseCvt, CvtParseError, type CvtPlugin } from '../plugins/parseCvt';
-import { setSkipTrustConfirm, shouldSkipTrustConfirm, trustKeyOf } from '../plugins/trust';
+import { clearPluginStorage } from '../plugins/toolbarBridge';
 import type { Plugin } from '../types';
 
 interface PluginsViewProps {
   onBack: () => void;
-  trustedKeys: string[];
-  onTrustChange: (keys: string[]) => void;
 }
 
 function PluginAvatar({ plugin }: { plugin: Plugin }) {
@@ -46,52 +44,18 @@ const PLUGIN_SECTIONS = [
     type: 'selection-toolbar' as const,
     label: '文本选择工具栏插件',
     desc: '选中文本时按正则匹配显示按钮',
-    switchHint: '启用并信任后，选中文本匹配其正则时按钮将出现在文本选择工具栏',
+    switchHint: '启用后选中文本匹配其正则时，按钮将出现在文本选择工具栏',
   },
 ];
 
-function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
+function PluginsView({ onBack }: PluginsViewProps) {
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [trusting, setTrusting] = useState<Plugin | null>(null);
   const [conflict, setConflict] = useState<CvtPlugin | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const isTrusted = (p: Plugin) => trustedKeys.includes(trustKeyOf(p));
-
-  const requestTrust = (plugin: Plugin) => {
-    if (shouldSkipTrustConfirm()) {
-      onTrustChange([...trustedKeys, trustKeyOf(plugin)]);
-    } else {
-      setTrusting(plugin);
-    }
-  };
-
-  const handleTrustConfirm = (skipConfirm: boolean) => {
-    if (!trusting) return;
-    if (skipConfirm) setSkipTrustConfirm(true);
-    onTrustChange([...trustedKeys, trustKeyOf(trusting)]);
-    setTrusting(null);
-  };
-
-  const handleUntrust = async () => {
-    if (!selected) return;
-    onTrustChange(trustedKeys.filter((k) => k !== trustKeyOf(selected)));
-    if (!selected.enabled) return;
-    setError('');
-    setBusy(true);
-    try {
-      await api.updatePlugin(selected.id, { enabled: false });
-      await reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '操作失败');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   useEffect(() => {
     api
@@ -196,6 +160,7 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
     setBusy(true);
     try {
       await api.deletePlugin(selected.id);
+      clearPluginStorage(selected.id);
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : '删除失败');
@@ -278,9 +243,6 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
                         <span className="plugins-master-name">
                           {p.name}
                           {p.enabled && <span className="plugins-tag">启用中</span>}
-                          {p.type === 'selection-toolbar' && !isTrusted(p) && (
-                            <span className="plugins-tag plugins-tag-warn">未信任</span>
-                          )}
                         </span>
                         <span className="plugins-master-desc">{p.description}</span>
                         <span className="plugins-master-meta">
@@ -339,94 +301,26 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
                     </div>
                   )}
 
-                  {selected.type === 'selection-toolbar' && (
-                    <>
-                      <div className="plugins-divider" />
+                  <div className="plugins-divider" />
 
-                      <div className="plugins-prereq">
-                        <span className="plugins-prereq-label">使用前提</span>
-                        <div className="plugins-prereq-panel">
-                          <div className="plugins-prereq-step">
-                            <div className="plugins-prereq-body">
-                              <span className="plugins-prereq-name">信任插件</span>
-                              <span className="plugins-prereq-hint">
-                                免沙箱插件需逐个确认风险后才会出现在文本选择工具栏；插件更新版本后需重新信任
-                              </span>
-                            </div>
-                            {isTrusted(selected) ? (
-                              <PopConfirm
-                                title={`确定取消信任「${selected.name}」？${
-                                  selected.enabled ? '插件将同时停用，' : ''
-                                }取消后需重新信任才能再次使用`}
-                                confirmText="取消信任"
-                                onConfirm={handleUntrust}
-                              >
-                                <button
-                                  className="plugins-trust-button plugins-untrust-button"
-                                  disabled={busy}
-                                >
-                                  取消信任
-                                </button>
-                              </PopConfirm>
-                            ) : (
-                              <button
-                                className="plugins-trust-button"
-                                disabled={busy}
-                                onClick={() => requestTrust(selected)}
-                              >
-                                信任
-                              </button>
-                            )}
-                          </div>
-                          <div className="plugins-prereq-step">
-                            <div className="plugins-prereq-body">
-                              <span className="plugins-prereq-name">启用插件</span>
-                              <span className="plugins-prereq-hint">
-                                {isTrusted(selected)
-                                  ? PLUGIN_SECTIONS.find((s) => s.type === selected.type)?.switchHint
-                                  : '未信任的插件不能启用，请先信任该插件'}
-                              </span>
-                            </div>
-                            <button
-                              className={`toggle-switch ${selected.enabled ? 'on' : ''}`}
-                              role="switch"
-                              aria-checked={selected.enabled}
-                              aria-label="启用插件"
-                              disabled={busy || !isTrusted(selected)}
-                              onClick={handleToggleEnabled}
-                            >
-                              <span className="toggle-knob" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {selected.type !== 'selection-toolbar' && (
-                    <>
-                      <div className="plugins-divider" />
-
-                      <div className="plugins-switch-row">
-                        <div>
-                          <span className="plugins-switch-label">启用插件</span>
-                          <span className="plugins-switch-hint">
-                            {PLUGIN_SECTIONS.find((s) => s.type === selected.type)?.switchHint}
-                          </span>
-                        </div>
-                        <button
-                          className={`toggle-switch ${selected.enabled ? 'on' : ''}`}
-                          role="switch"
-                          aria-checked={selected.enabled}
-                          aria-label="启用插件"
-                          disabled={busy}
-                          onClick={handleToggleEnabled}
-                        >
-                          <span className="toggle-knob" />
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <div className="plugins-switch-row">
+                    <div>
+                      <span className="plugins-switch-label">启用插件</span>
+                      <span className="plugins-switch-hint">
+                        {PLUGIN_SECTIONS.find((s) => s.type === selected.type)?.switchHint}
+                      </span>
+                    </div>
+                    <button
+                      className={`toggle-switch ${selected.enabled ? 'on' : ''}`}
+                      role="switch"
+                      aria-checked={selected.enabled}
+                      aria-label="启用插件"
+                      disabled={busy}
+                      onClick={handleToggleEnabled}
+                    >
+                      <span className="toggle-knob" />
+                    </button>
+                  </div>
 
                   <div className="plugins-detail-actions">
                     <PopConfirm title={`确定删除插件「${selected.name}」？`} onConfirm={handleDelete}>
@@ -449,15 +343,6 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
           </div>
         </div>
       </div>
-
-      {trusting && (
-        <PluginTrustModal
-          plugin={trusting}
-          onConfirm={handleTrustConfirm}
-          onCancel={() => setTrusting(null)}
-        />
-      )}
-
       {conflict && (
         <div
           className="modal-overlay"
@@ -481,7 +366,7 @@ function PluginsView({ onBack, trustedKeys, onTrustChange }: PluginsViewProps) {
               <li className="plugin-trust-risk">
                 <span className="plugin-trust-risk-title">代码与信息将被整体替换</span>
                 <span className="plugin-trust-risk-detail">
-                  插件的代码、作者、版本等全部以新文件为准；若代码发生变化，原有信任将失效，需重新确认信任后才能继续使用。
+                  插件的代码、作者、版本等全部以新文件为准；该插件 id 下的私有存储会被保留，新代码可直接读到旧数据。
                 </span>
               </li>
             </ul>

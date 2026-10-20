@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -18,7 +18,6 @@ import {
 } from './itemActions';
 import type { Clipboard, ClipboardItem, DuplicateGroup, Plugin, WsEvent } from './types';
 import { migrateStorageKey } from './storage';
-import { loadTrustedKeys, saveTrustedKeys, trustKeyOf } from './plugins/trust';
 
 type Theme = 'light' | 'dark';
 
@@ -84,10 +83,6 @@ function App() {
   const [dupGroups, setDupGroups] = useState<DuplicateGroup[] | null>(null);
   const [activePlugin, setActivePlugin] = useState<Plugin | null>(null);
   const [toolbarPlugins, setToolbarPlugins] = useState<Plugin[]>([]);
-  const [trustedKeys, setTrustedKeys] = useState<string[]>(() => loadTrustedKeys());
-  useEffect(() => {
-    saveTrustedKeys(trustedKeys);
-  }, [trustedKeys]);
   const [notice, setNotice] = useState<{
     text: string;
     actionLabel?: string;
@@ -380,11 +375,6 @@ function App() {
     setDupGroups(null);
   }, [activeId]);
 
-  const usableToolbarPlugins = useMemo(
-    () => toolbarPlugins.filter((p) => trustedKeys.includes(trustKeyOf(p))),
-    [toolbarPlugins, trustedKeys],
-  );
-
   if (!authed) {
     return (
       <KeyGate
@@ -397,7 +387,7 @@ function App() {
 
   return (
     <div className="app">
-      <SelectionToolbar plugins={usableToolbarPlugins} onNotice={showNotice} />
+      <SelectionToolbar plugins={toolbarPlugins} onNotice={showNotice} />
       <Header
         sidebarOpen={sidebarOpen}
         showSidebarToggle={view === 'main'}
@@ -426,11 +416,7 @@ function App() {
           }}
         />
       ) : view === 'plugins' ? (
-        <PluginsView
-          onBack={() => setView('main')}
-          trustedKeys={trustedKeys}
-          onTrustChange={setTrustedKeys}
-        />
+        <PluginsView onBack={() => setView('main')} />
       ) : (
         <div className="main-container">
           <Sidebar

@@ -5,7 +5,7 @@ ClipNote 插件系统拥有多个子模块。所有插件统一以 `.CVT` 文件
 | 类型 | 标识 | 入口 | 出口 | 运行环境 | 启用规则 |
 |---|---|---|---|---|---|
 | 文本处理插件 | `text-transform`（缺省） | 剪贴板条目的完整文本 | 处理后的新文本（覆盖原条目） | Web Worker 沙箱，同步执行，3 秒超时 | 单选启用 |
-| 文本选择工具栏插件 | `selection-toolbar` | 选中的文本 | 无（返回值仅用于成功反馈文案） | 主线程，无沙箱，支持 async | 多选启用 |
+| 文本选择工具栏插件 | `selection-toolbar` | 选中的文本 | 无（返回值仅用于成功反馈文案） | Web Worker 沙箱，支持 async，3 秒超时，特权操作经能力桥 | 多选启用 |
 
 ## 1. 文件格式（通用）
 
@@ -57,7 +57,7 @@ function process(input) {
 - `input` 为剪贴板条目的完整文本；返回值为覆盖原条目的新文本
 - 返回空字符串是合法的（会覆盖为空文本），但 `process` 抛出异常会导致本次处理失败
 - 必须是**同步纯函数**：不使用 `async`/`await`、`Promise`、回调
-- 不允许访问任何外部资源：沙箱中不存在 `DOM`、`fetch`/`XMLHttpRequest`、`localStorage`、`import` 等能力
+- 不访问主线程能力：沙箱中不存在 `DOM`、`localStorage`、`clipboard` 等；运行容器是标准 Web Worker（技术上存在 `fetch` 等网络全局，但本类型契约要求**同步纯函数**，使用网络等超出契约的能力不受支持）
 - 执行超时为 **3 秒**，超时会被强制终止并视为失败
 
 失败行为（异常或超时）：不覆盖原条目，界面上提示插件错误，原文保持不变。
@@ -159,35 +159,31 @@ function process(input) {
 - 支持 `async`：
   - **resolve = 成功**，宿主自动弹出成功通知；`resolve('自定义文案')`（即 `return '自定义文案'`）可定制通知文案，无返回值时显示默认文案
   - **throw / reject = 失败**，宿主自动弹出失败通知（`Error.message` 会展示，否则显示通用文案）
-- 执行超时为 **3 秒**：超时后宿主取消等待并弹出失败通知。注意这只是取消等待——同步死循环仍会冻结页面、需刷新恢复，这是免沙箱架构的固有限制（见 `docs/adr/0002`）
-- `regex` 的匹配运行在 Web Worker 中：失控的正则（灾难性回溯）会在 3 秒后被强制终止，只表现为按钮不出现，不影响页面
-- **无沙箱**：插件代码运行在主线程，可使用全部 Web API——`window.open` 跳转网页、`navigator.clipboard.writeText` 写剪贴板、DOM 等
+- **运行在 Web Worker 沙箱**（决策见 `docs/adr/0003`）：
+  - 沙箱内不存在 `DOM`、`window`、`localStorage`、`navigator.clipboard` 等主线程能力
+  - 沙箱**不禁止网络**：`fetch` 等标准 Web Worker 全局可用，插件可自行发起网络请求（安全模型见 ADR 0003）
+  - **特权操作一律通过能力 API `clipnote.*` 完成**（见 4.3）；旧的 `window.open(...)` 等主线程写法在沙箱内不存在，直接报错
+- 执行超时为 **3 秒**（含 `clipnote.*` 调用的往返）：超时后 Worker 被强制终止并弹出失败通知，页面不受影响
+- `regex` 的匹配同样运行在 Web Worker 中：失控的正则（灾难性回溯）会在 3 秒后被强制终止，只表现为按钮不出现，不影响页面
 
-#### ⚠️ 健壮性要求（插件作者必读）
+### 4.3 能力 API（clipnote.*）
 
-工具栏插件运行在**主线程**，任何阻塞都会直接冻结用户页面（Worker 路径的 3 秒强杀对主线程同步代码无效）。编写时务必注意：
+沙箱全局注入 `clipnote` 对象，是插件唯一的特权出口；所有方法返回 `Promise`，调用经 postMessage 送回主线程，由宿主校验参数后代为执行：
 
-- **严禁同步死循环和长时间同步计算**：`while(true)`、超大规模字符串/数组处理会永久冻结页面，用户只能刷新
-- **不要在 `process` 里弹原生对话框**：`alert`/`confirm`/`prompt` 会阻塞主线程，放进循环等于永久卡死
-- **不要返回永不 settle 的 Promise**：`await new Promise(() => {})` 这类写法会被宿主 3 秒超时打断（功能可恢复），但插件自身逻辑已失效
-- 优先使用 `async` + `await` 处理异步操作，让宿主的超时保护有机会生效
-- 对输入保持防御：选中文本可能为空、超长或包含任意字符
-- ⚠️ **信任提示**：免沙箱意味着插件代码与你访问的网页脚本同等权限，可读取页面内任何数据。**只安装可信来源的插件**（决策详见 `docs/adr/0002`）
+| API | 签名 | 说明 |
+|---|---|---|
+| `clipnote.open` | `open(url: string): Promise<void>` | 新标签页打开网页（noopener）。仅放行 `http/https`，其他协议或非法链接该调用报错 |
+| `clipnote.copy` | `copy(text: string): Promise<boolean>` | 写入系统剪贴板，resolve 是否成功 |
+| `clipnote.storage` | `get(key): Promise<string \| null>`<br>`set(key, value): Promise<void>`<br>`remove(key): Promise<void>` | 插件私有 KV，key/value 均须为字符串。按插件 id 隔离、其他插件不可见；**删除插件时一并清除** |
+| `clipnote.systemNotify` | `systemNotify(title: string, body?: string): Promise<void>` | 弹出系统级 Notification。首次调用时宿主代为请求通知权限，被拒绝则该调用报错 |
 
-### 4.3 信任机制
-
-由于免沙箱，工具栏插件在使用前必须经过**逐设备、逐插件**的信任确认：
-
-- 新导入的工具栏插件需先信任：在「插件管理」详情页点击**「信任」**，弹出风险提示对话框（与网页脚本同等权限、主线程卡死风险等），确认后生效
-- **未信任的插件不能启用**（启用开关禁用）；未信任或未启用的插件都不会出现在文本选择工具栏
-- **未信任的插件即使处于启用状态，也不会出现在文本选择工具栏**（历史遗留数据场景）；正常流程下未信任的插件无法启用
-- 信任状态按 `插件 id + 版本` 记录在浏览器本地（仅当前设备生效）；插件**更新版本后需重新信任**
+注：与浏览器行为一致，写剪贴板、弹新窗口都要求用户激活上下文——插件由工具栏按钮点击触发，天然满足。
 
 ### 4.4 示例
 
 示例文件见 ClipNoteCVT 仓库（暂时未公开）。
 
-#### 示例 1：选中 ISBN 时跳转豆瓣搜索（`window.open` + 正则匹配演示）
+#### 示例 1：选中 ISBN 时跳转豆瓣搜索（`clipnote.open` + 正则匹配演示）
 
 ```text
 /* ClipNote-Plugin
@@ -195,7 +191,7 @@ function process(input) {
   "id": "douban-search",
   "name": "豆瓣搜索",
   "author": "Syrnaxei",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "选中文本为 ISBN（10/13 位）时，跳转到豆瓣搜索",
   "github_url": "github.com/Syrnaxei",
   "type": "selection-toolbar",
@@ -205,11 +201,11 @@ function process(input) {
 */
 async function process(input) {
   const q = encodeURIComponent(input.trim());
-  window.open('https://www.douban.com/search?q=' + q, '_blank', 'noopener,noreferrer');
+  await clipnote.open('https://www.douban.com/search?q=' + q);
 }
 ```
 
-#### 示例 2：把选中文本写入系统剪贴板（`navigator.clipboard` + 自定义成功文案演示）
+#### 示例 2：把选中文本写入系统剪贴板（`clipnote.copy` + 自定义成功文案演示）
 
 ```text
 /* ClipNote-Plugin
@@ -217,7 +213,7 @@ async function process(input) {
   "id": "copy-selection",
   "name": "复制选中",
   "author": "Syrnaxei",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "把选中的文本写入系统剪贴板（演示 resolve 自定义成功文案）",
   "github_url": "github.com/Syrnaxei",
   "type": "selection-toolbar",
@@ -226,7 +222,7 @@ async function process(input) {
 }
 */
 async function process(input) {
-  await navigator.clipboard.writeText(input);
+  await clipnote.copy(input);
   return '已复制 ' + input.length + ' 个字符';
 }
 ```
@@ -234,17 +230,18 @@ async function process(input) {
 ### 4.5 手工验收清单
 
 1. 启动开发环境（`./scripts/dev.sh`），登录后进入「插件管理」
-2. 导入 `examples/douban-search.cvt` 与 `examples/copy-selection.cvt` → 两者出现在「文本选择工具栏插件」分区，且带「未信任」标记
-3. 同时查看两者 → 均带「未信任」标记，**启用开关为禁用状态**（未信任不能启用）
-4. 选中插件 → 详情页点击「信任」→ 弹出风险提示对话框；点「取消」→ 仍为未信任、开关仍禁用；再次点击并勾选「不再提示」后确认 → 显示「已信任」，未信任标记消失，启用开关可用
-5. 启用两者；导入第三个工具栏插件 → 因已勾选「不再提示」，信任时直接生效、不再弹窗
-6. 在主界面选中一条含 ISBN 的条目正文（如 `9787020002207`）→ 约 0.8 秒后工具栏出现，含「查豆瓣」「复制选中」按钮
-7. 点击「查豆瓣」→ 工具栏收起，新标签页打开豆瓣搜索，弹出成功 toast
-8. 选中任意文本，点击「复制选中」→ toast 显示「已复制选中的 N 个字符」
-9. 选中不含 ISBN 的普通文本 → 只出现「复制选中」（及 URL 场景的内置按钮），不出现「查豆瓣」
-10. 选中无任何插件命中的文本（先把「复制选中」禁用）→ 工具栏只有内置按钮，与改动前一致
-11. 导入一个 `process` 内 `throw new Error('测试失败')` 的临时插件 → 点击后弹出失败 toast，且工具栏可继续正常使用
-12. 导入一个 `process` 返回 `new Promise(() => {})` 的临时插件 → 点击后约 3 秒弹出超时失败 toast，之后插件按钮仍可正常使用
+2. 导入 `examples/douban-search.cvt` 与 `examples/copy-selection.cvt` → 两者出现在「文本选择工具栏插件」分区，无任何信任相关 UI
+3. 启用两者（开关直接可用，无信任前置）
+4. 在主界面选中一条含 ISBN 的条目正文（如 `9787020002207`）→ 约 0.8 秒后工具栏出现，含「查豆瓣」「复制选中」按钮
+5. 点击「查豆瓣」→ 工具栏收起，新标签页打开豆瓣搜索，弹出成功 toast
+6. 选中任意文本，点击「复制选中」→ toast 显示「已复制选中的 N 个字符」
+7. 选中不含 ISBN 的普通文本 → 只出现「复制选中」（及 URL 场景的内置按钮），不出现「查豆瓣」
+8. 选中无任何插件命中的文本（先把「复制选中」禁用）→ 工具栏只有内置按钮，与改动前一致
+9. 导入一个 `process` 内 `throw new Error('测试失败')` 的临时插件 → 点击后弹出失败 toast，且工具栏可继续正常使用
+10. 导入一个 `process` 返回 `new Promise(() => {})` 的临时插件 → 点击后约 3 秒弹出超时失败 toast，页面全程不冻结，之后插件按钮仍可正常使用
+11. 导入一个临时插件：`await clipnote.storage.set('n', String(input.length))` 后 `get('n')` 拼进返回文案 → toast 显示存取的长度；再导入另一个 id 的插件尝试 `get('n')` → 结果为 null（按 id 隔离）
+12. 删除上一步的临时插件 → DevTools → Application → Local Storage 中 `clipnote_plugin_storage:<插件id>:` 前缀条目已被清除
+13. 导入一个调用 `window.open(...)` 的旧写法临时插件 → 点击后弹出失败 toast（沙箱内无 window），不影响其他插件
 
 ## 5. 导入与生命周期（通用）
 
@@ -254,5 +251,5 @@ async function process(input) {
 - 启用规则**按类型区分**：
   - **文本处理插件单选启用**：同一时间最多只有一个处于启用状态；启用新插件会自动禁用之前的文本处理插件；删除当前启用的插件后，主界面条目上的插件按钮消失
   - **文本选择工具栏插件多选启用**：多个可同时处于启用状态，互不影响，也不影响文本处理插件的启用状态
-- 插件可被删除
+- 插件可被删除；删除工具栏插件时，其 `clipnote.storage` 私有数据一并清除
 - 文本处理插件覆盖原文前的备份 `original_content` 保存在条目上，与插件删除无关，撤销能力不受影响
