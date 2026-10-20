@@ -296,7 +296,7 @@ function ClipboardList({
               </div>
             </div>
           ))}
-        {!loading && !loadError && items.length === 0 && (
+        {!loading && !loadError && items.length === 0 && renderItems.length === 0 && (
           <div className="empty-state">
             <p>暂无内容，在下方输入框添加</p>
           </div>
