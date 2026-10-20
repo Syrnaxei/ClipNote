@@ -227,6 +227,26 @@ What makes Claude's design truly distinctive is its warm neutral palette. Every 
 - **Light/Dark alternation**: The most dramatic depth effect comes from alternating between Parchment (`#f5f4ed`) and Near Black (`#141413`) sections — entire sections shift elevation by changing the ambient light level.
 - **Warm ring halos**: Button and card interactions use ring shadows that match the warm palette — never cool-toned or generic gray.
 
+### Motion（动效语言：纸张余韵）
+
+动效的原则是「慢半拍、少位移、不弹跳」。时长集中在 `web/src/index.css` 的 `--dur-*` 变量里，JS 侧对应 `web/src/motion.ts` 的 `MOTION`，两处必须同步修改。
+
+| Token | 值 | 用途 |
+|-------|-----|------|
+| `--ease-paper` | `cubic-bezier(0.22, 0.68, 0.32, 1)` | 全局唯一缓动曲线 |
+| `--dur-fast` / `--dur-base` | 140ms / 200ms | hover、侧栏折叠、遮罩淡入 |
+| `--dur-exit` | 180ms | 浮层退场（模态、PopConfirm、toast） |
+| `--dur-view-out` / `--dur-view-in` | 90ms / 180ms | 主列表 ↔ 设置 ↔ 插件 |
+| `--dur-list-in` / `--dur-list-out` | 300ms / 180ms | 条目纸张落下 / 塌陷收回 |
+| `--dur-nav` | 220ms | 设置导航的滑动指示块 |
+
+- 进场 180–300ms，退场统一 180ms；位移不超过 8px（新条目落下为 12px，是唯一例外）
+- 浮层遮罩 `blur(6px)` + 压暗 0.3；悬浮层本体 `blur(8px) saturate(1.06)`；Header 不加模糊（与内容没有重叠）
+- 主题切换从触发按钮位置用 `clip-path: circle()` 扩散，480ms；浏览器不支持 View Transitions 时直接瞬切
+- 切换剪切板：内容淡出 90ms → 滚动复位 → 淡入 130ms
+- `prefers-reduced-motion: reduce` 下全部退化为瞬切：CSS 媒体查询归零 + `motionDelay()` 让 JS 等待归零，双保险
+- 不做弹跳、不做视差；列表退场用容器高度塌陷带动下方上移，不用 `FLIP` 计算
+
 ## 7. Do's and Don'ts
 
 ### Do
