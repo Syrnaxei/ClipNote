@@ -11,11 +11,24 @@
   z-index: 1000;
   min-width: 190px;
   padding: 14px;
-  background-color: var(--surface);
-  border: 1px solid var(--border-strong);
+  background-color: var(--glass);
+  -webkit-backdrop-filter: blur(var(--blur-float)) saturate(1.06);
+  backdrop-filter: blur(var(--blur-float)) saturate(1.06);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-btn);
-  box-shadow: 0px 0px 0px 1px var(--border), var(--whisper);
-  animation: popconfirm-in 0.16s ease;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.45) inset;
+  animation: popconfirm-in var(--dur-base) var(--ease-paper);
+}
+
+:root[data-theme='dark'] .popconfirm-popover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.popconfirm-popover.is-closing {
+  animation: popconfirm-out var(--dur-exit) var(--ease-paper) forwards;
+  pointer-events: none;
 }
 
 @keyframes popconfirm-in {
@@ -23,9 +36,12 @@
     opacity: 0;
     transform: translateY(4px);
   }
+}
+
+@keyframes popconfirm-out {
   to {
-    opacity: 1;
-    transform: translateY(0);
+    opacity: 0;
+    transform: translateY(3px) scale(0.992);
   }
 }
 

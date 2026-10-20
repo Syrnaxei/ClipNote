@@ -18,6 +18,7 @@ import {
 } from './itemActions';
 import type { Clipboard, ClipboardItem, DuplicateGroup, Plugin, WsEvent } from './types';
 import { migrateStorageKey } from './storage';
+import { MOTION, motionDelay } from './motion';
 
 type Theme = 'light' | 'dark';
 
@@ -90,6 +91,7 @@ function App() {
     onAction?: () => void;
   } | null>(null);
   const [noticeBottom, setNoticeBottom] = useState<number | null>(null);
+  const [noticeLeaving, setNoticeLeaving] = useState(false);
   const [connected, setConnected] = useState(false);
   const activeIdRef = useRef<number | null>(null);
   activeIdRef.current = activeId;
@@ -353,13 +355,28 @@ function App() {
     }
   }, [authed, view, refreshActivePlugin]);
 
+  const noticeTimerRef = useRef(0);
+
+  useEffect(() => () => window.clearTimeout(noticeTimerRef.current), []);
+
+  const hideNotice = useCallback(() => {
+    setNoticeLeaving(true);
+    window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNotice(null);
+      setNoticeLeaving(false);
+    }, motionDelay(MOTION.overlayOut));
+  }, []);
+
   useEffect(() => {
     if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 6000);
-    return () => clearTimeout(timer);
-  }, [notice]);
+    const timer = window.setTimeout(hideNotice, 6000);
+    return () => window.clearTimeout(timer);
+  }, [notice, hideNotice]);
 
   const showNotice = (n: { text: string; actionLabel?: string; onAction?: () => void }) => {
+    window.clearTimeout(noticeTimerRef.current);
+    setNoticeLeaving(false);
     const input = document.querySelector<HTMLElement>('.add-item-input');
     setNoticeBottom(
       input ? window.innerHeight - input.getBoundingClientRect().top + 12 : null,
@@ -374,7 +391,7 @@ function App() {
       text: `已应用插件「${pluginName}」`,
       actionLabel: '撤销',
       onAction: async () => {
-        setNotice(null);
+        hideNotice();
         await api.updateItem(item.id, item.content, null);
       },
     });
@@ -491,7 +508,7 @@ function App() {
 
       {notice && (
         <div
-          className="notice-toast"
+          className={`notice-toast ${noticeLeaving ? 'is-leaving' : ''}`}
           role="status"
           style={noticeBottom !== null ? { bottom: noticeBottom } : undefined}
         >
@@ -504,7 +521,7 @@ function App() {
           <button
             className="notice-close"
             aria-label="关闭"
-            onClick={() => setNotice(null)}
+            onClick={hideNotice}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>

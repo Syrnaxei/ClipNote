@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Clipboard } from '../types';
 import { copyText } from '../clipboard';
+import { useDismissAnimation } from '../useDismissAnimation';
 import './ClipboardEditModal.css';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -19,20 +20,21 @@ function ClipboardEditModal({ clipboard, onCancel, onSave }: ClipboardEditModalP
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [uuidFocused, setUuidFocused] = useState(false);
+  const { closing, dismiss: closeModal } = useDismissAnimation();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !saving) {
+      if (e.key === 'Escape' && !saving && !closing) {
         if (editing) {
           setEditing(false);
         } else {
-          onCancel();
+          closeModal(onCancel);
         }
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [editing, onCancel, saving]);
+  }, [editing, onCancel, saving, closing, closeModal]);
 
   const startEdit = () => {
     setName(clipboard.name);
@@ -64,6 +66,7 @@ function ClipboardEditModal({ clipboard, onCancel, onSave }: ClipboardEditModalP
     setError('');
     try {
       await onSave({ name: name.trim(), uuid: uuid.trim() });
+      closeModal(onCancel);
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败，请重试');
       setSaving(false);
@@ -71,10 +74,11 @@ function ClipboardEditModal({ clipboard, onCancel, onSave }: ClipboardEditModalP
   };
 
   const dismiss = () => {
+    if (saving || closing) return;
     if (editing) {
       setEditing(false);
     } else {
-      onCancel();
+      closeModal(onCancel);
     }
   };
 
@@ -89,7 +93,10 @@ function ClipboardEditModal({ clipboard, onCancel, onSave }: ClipboardEditModalP
   });
 
   return (
-    <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && !saving && dismiss()}>
+    <div
+      className={`modal-overlay ${closing ? 'is-closing' : ''}`}
+      onMouseDown={(e) => e.target === e.currentTarget && dismiss()}
+    >
       <div className="modal-card" role="dialog" aria-modal="true">
         <h3 className="modal-title">{clipboard.name}</h3>
         {editing ? (
@@ -172,7 +179,7 @@ function ClipboardEditModal({ clipboard, onCancel, onSave }: ClipboardEditModalP
               <p className="modal-hint">供外部 API 调用时标识此剪切板</p>
             </div>
             <div className="modal-actions">
-              <button className="modal-cancel" onClick={onCancel}>
+              <button className="modal-cancel" onClick={dismiss}>
                 关闭
               </button>
               <button className="modal-confirm" onClick={startEdit}>

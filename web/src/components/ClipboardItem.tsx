@@ -338,7 +338,6 @@ function ClipboardItem({
           onCancel={() => setMoveOpen(false)}
           onMove={async (targetId) => {
             await onMove(item.id, targetId);
-            setMoveOpen(false);
           }}
         />
       )}

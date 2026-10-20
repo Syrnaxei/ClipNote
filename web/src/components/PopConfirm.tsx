@@ -1,5 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { motionDelay } from '../motion';
 import './PopConfirm.css';
+
+/** 与 --dur-exit 对齐的退场时长 */
+const EXIT_MS = 180;
 
 interface PopConfirmProps {
   title: string;
@@ -17,9 +28,24 @@ function PopConfirm({
   children,
 }: PopConfirmProps) {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const triggerRef = useRef<HTMLSpanElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
   const triggerRect = useRef<DOMRect | null>(null);
+  const timerRef = useRef(0);
+
+  useEffect(() => () => window.clearTimeout(timerRef.current), []);
+
+  const close = useCallback((after?: () => void) => {
+    if (timerRef.current !== 0) return;
+    setClosing(true);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = 0;
+      setOpen(false);
+      setClosing(false);
+      after?.();
+    }, motionDelay(EXIT_MS));
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -30,10 +56,10 @@ function PopConfirm({
       ) {
         return;
       }
-      setOpen(false);
+      close();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') close();
     };
     document.addEventListener('mousedown', onDocMouseDown);
     document.addEventListener('keydown', onKey);
@@ -41,7 +67,7 @@ function PopConfirm({
       document.removeEventListener('mousedown', onDocMouseDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open]);
+  }, [open, close]);
 
   useLayoutEffect(() => {
     if (!open || !triggerRect.current || !popRef.current) return;
@@ -59,6 +85,7 @@ function PopConfirm({
 
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (timerRef.current !== 0) return;
     if (!open && triggerRef.current) {
       triggerRect.current = triggerRef.current.getBoundingClientRect();
     }
@@ -71,18 +98,19 @@ function PopConfirm({
         {children}
       </span>
       {open && (
-        <div className="popconfirm-popover" ref={popRef} onClick={(e) => e.stopPropagation()}>
+        <div
+          className={`popconfirm-popover ${closing ? 'is-closing' : ''}`}
+          ref={popRef}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="popconfirm-title">{title}</div>
           <div className="popconfirm-actions">
-            <button className="popconfirm-cancel" onClick={() => setOpen(false)}>
+            <button className="popconfirm-cancel" onClick={() => close()}>
               {cancelText}
             </button>
             <button
               className="popconfirm-confirm"
-              onClick={() => {
-                setOpen(false);
-                onConfirm();
-              }}
+              onClick={() => close(onConfirm)}
             >
               {confirmText}
             </button>

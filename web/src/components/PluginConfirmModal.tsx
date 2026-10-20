@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import './PluginConfirmModal.css';
 import { runPlugin } from '../plugins/sandbox';
+import { useDismissAnimation } from '../useDismissAnimation';
 import type { Plugin } from '../types';
 
 interface PluginConfirmModalProps {
@@ -14,6 +15,7 @@ function PluginConfirmModal({ plugin, content, onConfirm, onCancel }: PluginConf
   const [status, setStatus] = useState<'running' | 'ok' | 'error'>('running');
   const [result, setResult] = useState('');
   const [error, setError] = useState('');
+  const { closing, dismiss } = useDismissAnimation();
 
   useEffect(() => {
     let cancelled = false;
@@ -39,9 +41,9 @@ function PluginConfirmModal({ plugin, content, onConfirm, onCancel }: PluginConf
 
   return (
     <div
-      className="modal-overlay"
+      className={`modal-overlay ${closing ? 'is-closing' : ''}`}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onCancel();
+        if (e.target === e.currentTarget && !closing) dismiss(onCancel);
       }}
     >
       <div className="modal-card plugin-confirm-card">
@@ -77,13 +79,13 @@ function PluginConfirmModal({ plugin, content, onConfirm, onCancel }: PluginConf
         )}
 
         <div className="modal-actions">
-          <button className="modal-cancel" onClick={onCancel}>
+          <button className="modal-cancel" onClick={() => dismiss(onCancel)}>
             取消
           </button>
           <button
             className="modal-confirm"
             disabled={status !== 'ok'}
-            onClick={() => onConfirm(result)}
+            onClick={() => dismiss(() => onConfirm(result))}
           >
             覆盖原文
           </button>

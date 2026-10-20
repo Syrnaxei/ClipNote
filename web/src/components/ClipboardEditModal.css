@@ -1,20 +1,30 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(20, 20, 19, 0.4);
+  background-color: var(--scrim);
+  -webkit-backdrop-filter: blur(var(--blur-scrim));
+  backdrop-filter: blur(var(--blur-scrim));
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: modal-fade-in 0.15s ease;
+  animation: overlay-in var(--dur-base) var(--ease-paper);
 }
 
-@keyframes modal-fade-in {
+.modal-overlay.is-closing {
+  animation: overlay-out var(--dur-exit) var(--ease-paper) forwards;
+  pointer-events: none;
+}
+
+@keyframes overlay-in {
   from {
     opacity: 0;
   }
+}
+
+@keyframes overlay-out {
   to {
-    opacity: 1;
+    opacity: 0;
   }
 }
 
@@ -26,7 +36,7 @@
   border-radius: 16px;
   box-shadow: var(--whisper);
   padding: 28px;
-  animation: modal-card-in 0.18s ease;
+  animation: card-in var(--dur-base) var(--ease-paper);
 }
 
 html.mobile .modal-card {
@@ -34,14 +44,21 @@ html.mobile .modal-card {
   padding: 20px;
 }
 
-@keyframes modal-card-in {
+.modal-overlay.is-closing .modal-card {
+  animation: card-out var(--dur-exit) var(--ease-paper) forwards;
+}
+
+@keyframes card-in {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(8px) scale(0.985);
   }
+}
+
+@keyframes card-out {
   to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    opacity: 0;
+    transform: translateY(4px) scale(0.992);
   }
 }
 

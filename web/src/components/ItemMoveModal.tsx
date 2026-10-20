@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Clipboard, ClipboardItem } from '../types';
+import { useDismissAnimation } from '../useDismissAnimation';
 import '../components/Sidebar.css';
 import './ClipboardEditModal.css';
 import './ItemMoveModal.css';
@@ -15,6 +16,7 @@ function ItemMoveModal({ item, clipboards, onCancel, onMove }: ItemMoveModalProp
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [moving, setMoving] = useState(false);
+  const { closing, dismiss } = useDismissAnimation();
 
   const targets = [...clipboards]
     .filter((c) => c.id !== item.clipboard_id)
@@ -27,11 +29,11 @@ function ItemMoveModal({ item, clipboards, onCancel, onMove }: ItemMoveModalProp
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !moving) onCancel();
+      if (e.key === 'Escape' && !moving && !closing) dismiss(onCancel);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [moving, onCancel]);
+  }, [moving, closing, onCancel, dismiss]);
 
   const submit = async () => {
     if (selectedId === null) {
@@ -42,6 +44,7 @@ function ItemMoveModal({ item, clipboards, onCancel, onMove }: ItemMoveModalProp
     setError('');
     try {
       await onMove(selectedId);
+      dismiss(onCancel);
     } catch (err) {
       setError(err instanceof Error ? err.message : '转移失败，请重试');
       setMoving(false);
@@ -52,8 +55,8 @@ function ItemMoveModal({ item, clipboards, onCancel, onMove }: ItemMoveModalProp
 
   return (
     <div
-      className="modal-overlay"
-      onMouseDown={(e) => e.target === e.currentTarget && !moving && onCancel()}
+      className={`modal-overlay ${closing ? 'is-closing' : ''}`}
+      onMouseDown={(e) => e.target === e.currentTarget && !moving && dismiss(onCancel)}
     >
       <div className="modal-card" role="dialog" aria-modal="true">
         <h3 className="modal-title">转移到…</h3>
@@ -90,7 +93,7 @@ function ItemMoveModal({ item, clipboards, onCancel, onMove }: ItemMoveModalProp
         </div>
         {error && <div className="modal-error">{error}</div>}
         <div className="modal-actions">
-          <button className="modal-cancel" onClick={onCancel} disabled={moving}>
+          <button className="modal-cancel" onClick={() => dismiss(onCancel)} disabled={moving}>
             取消
           </button>
           <button className="modal-confirm" onClick={submit} disabled={moving || selectedId === null}>

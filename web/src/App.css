@@ -25,13 +25,21 @@
   align-items: center;
   gap: 14px;
   padding: 12px 18px;
+  border: 1px solid var(--glass-border);
   border-radius: 10px;
-  background-color: var(--surface-3);
+  background-color: var(--glass);
+  -webkit-backdrop-filter: blur(var(--blur-float)) saturate(1.06);
+  backdrop-filter: blur(var(--blur-float)) saturate(1.06);
   box-shadow: var(--whisper);
   z-index: 1100;
-  animation: notice-in 0.2s ease;
+  animation: notice-in var(--dur-base) var(--ease-paper);
   font-size: 14px;
   color: var(--text);
+}
+
+.notice-toast.is-leaving {
+  animation: notice-out var(--dur-exit) var(--ease-paper) forwards;
+  pointer-events: none;
 }
 
 @keyframes notice-in {
@@ -39,9 +47,12 @@
     opacity: 0;
     transform: translateX(-50%) translateY(8px);
   }
+}
+
+@keyframes notice-out {
   to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px);
   }
 }
 

@@ -310,7 +310,6 @@ function ClipboardList({
           onCancel={() => setEditModalOpen(false)}
           onSave={async (data) => {
             await onUpdateClipboard(clipboard.id, data);
-            setEditModalOpen(false);
           }}
         />
       )}

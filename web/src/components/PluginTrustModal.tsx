@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './PluginTrustModal.css';
+import { useDismissAnimation } from '../useDismissAnimation';
 import type { Plugin } from '../types';
 
 interface PluginTrustModalProps {
@@ -33,12 +34,13 @@ const RISKS = [
 
 function PluginTrustModal({ plugin, onConfirm, onCancel }: PluginTrustModalProps) {
   const [skipConfirm, setSkipConfirm] = useState(false);
+  const { closing, dismiss } = useDismissAnimation();
 
   return (
     <div
-      className="modal-overlay"
+      className={`modal-overlay ${closing ? 'is-closing' : ''}`}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onCancel();
+        if (e.target === e.currentTarget && !closing) dismiss(onCancel);
       }}
     >
       <div className="modal-card plugin-trust-card">
@@ -73,10 +75,13 @@ function PluginTrustModal({ plugin, onConfirm, onCancel }: PluginTrustModalProps
             <span>不再提示</span>
           </label>
           <div className="modal-actions">
-            <button className="modal-cancel" onClick={onCancel}>
+            <button className="modal-cancel" onClick={() => dismiss(onCancel)}>
               取消
             </button>
-            <button className="modal-confirm plugin-trust-confirm" onClick={() => onConfirm(skipConfirm)}>
+            <button
+              className="modal-confirm plugin-trust-confirm"
+              onClick={() => dismiss(() => onConfirm(skipConfirm))}
+            >
               信任
             </button>
           </div>
