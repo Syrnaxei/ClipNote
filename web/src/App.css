@@ -8,6 +8,8 @@
   height: 100vh;
   background-color: var(--bg);
   color: var(--text);
+  /* 视图进出场有 6px 位移，裁掉后才能保证文档不出现滚动条、布局不被挤压 */
+  overflow: hidden;
 }
 
 .main-container {
