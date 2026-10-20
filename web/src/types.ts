@@ -59,4 +59,7 @@ export type WsEvent =
   | { type: 'item.created'; payload: ClipboardItem }
   | { type: 'item.updated'; payload: ClipboardItem }
   | { type: 'item.moved'; payload: { item: ClipboardItem; fromClipboardId: number } }
-  | { type: 'item.deleted'; payload: { id: number; clipboardId: number } };
+  | { type: 'item.deleted'; payload: { id: number; clipboardId: number } }
+  | { type: 'plugin.created'; payload: Plugin }
+  | { type: 'plugin.updated'; payload: Plugin }
+  | { type: 'plugin.deleted'; payload: { id: string } };

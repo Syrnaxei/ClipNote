@@ -2,6 +2,7 @@ import { Router } from 'express';
 import db from '../db.js';
 import { ApiError } from '../auth.js';
 import { pluginSlugParamSchema, pluginCreateSchema, pluginUpdateSchema, pluginStateError } from '../validation.js';
+import { broadcast } from '../ws.js';
 
 const router = Router();
 
@@ -67,6 +68,7 @@ router.post('/', (req, res) => {
     .prepare(`SELECT ${PLUGIN_FIELDS} FROM plugins WHERE slug = ?`)
     .get(data.id) as PluginRow;
   res.status(201).json({ plugin: serialize(plugin) });
+  broadcast('plugin.created', serialize(plugin));
 });
 
 router.patch('/:id', (req, res) => {
@@ -106,6 +108,7 @@ router.patch('/:id', (req, res) => {
   );
   const plugin = getPluginOrThrow(id);
   res.json({ plugin: serialize(plugin) });
+  broadcast('plugin.updated', serialize(plugin));
 });
 
 router.delete('/:id', (req, res) => {
@@ -113,6 +116,7 @@ router.delete('/:id', (req, res) => {
   getPluginOrThrow(id);
   db.prepare('DELETE FROM plugins WHERE slug = ?').run(id);
   res.status(204).send();
+  broadcast('plugin.deleted', { id });
 });
 
 export default router;

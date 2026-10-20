@@ -133,6 +133,21 @@ function App() {
       .catch(() => {});
   }, []);
 
+  const refreshActivePlugin = useCallback(async () => {
+    try {
+      const { plugins } = await api.listPlugins();
+      setActivePlugin(
+        plugins.find((p) => p.enabled && p.type === 'text-transform') ?? null,
+      );
+      setToolbarPlugins(
+        plugins.filter((p) => p.enabled && p.type === 'selection-toolbar'),
+      );
+    } catch {
+      setActivePlugin(null);
+      setToolbarPlugins([]);
+    }
+  }, []);
+
   useEffect(() => {
     if (!authed) return;
 
@@ -240,6 +255,11 @@ function App() {
             });
             break;
           }
+          case 'plugin.created':
+          case 'plugin.updated':
+          case 'plugin.deleted':
+            refreshActivePlugin();
+            break;
         }
       },
       (status) => {
@@ -254,7 +274,7 @@ function App() {
       disposed = true;
       closeWs();
     };
-  }, [authed, refreshAll, refreshAggregates]);
+  }, [authed, refreshAll, refreshAggregates, refreshActivePlugin]);
 
   useEffect(() => {
     if (activeId !== null && itemsByClipboard[activeId] === undefined) {
@@ -311,21 +331,6 @@ function App() {
     if (!ok) showNotice({ text: '复制失败，请手动复制' });
     return ok;
   };
-
-  const refreshActivePlugin = useCallback(async () => {
-    try {
-      const { plugins } = await api.listPlugins();
-      setActivePlugin(
-        plugins.find((p) => p.enabled && p.type === 'text-transform') ?? null,
-      );
-      setToolbarPlugins(
-        plugins.filter((p) => p.enabled && p.type === 'selection-toolbar'),
-      );
-    } catch {
-      setActivePlugin(null);
-      setToolbarPlugins([]);
-    }
-  }, []);
 
   useEffect(() => {
     if (authed && view === 'main') {
