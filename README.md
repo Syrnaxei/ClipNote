@@ -1,7 +1,7 @@
 <h1 align="center">ClipNote</h1>
 
 <p align="center">
-  纯文本剪贴板的多设备实时同步服务
+  剪记 -- 随时随地记录重要信息
 </p>
 
 <p align="center">
