@@ -16,8 +16,10 @@ export const MOTION = {
   overlayOut: 180,
   /** 列表项落下 */
   listIn: 300,
-  /** 列表项塌陷退场 */
-  listOut: 180,
+  /** 列表项抬升退场 */
+  listOut: 240,
+  /** 列表让位（与设置拖拽同一时长 / 曲线） */
+  listShift: 250,
   /** 设置导航指示滑动 */
   navIndicator: 220,
   /** 侧栏折叠 */
@@ -26,6 +28,9 @@ export const MOTION = {
   switchOut: 90,
   switchIn: 130,
 } as const;
+
+/** 列表让位与设置拖拽共用的缓动，与 CSS `--ease-shift` 保持一致。 */
+export const SHIFT_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)';
 
 /** 系统是否要求减少动态效果。 */
 export function prefersReducedMotion(): boolean {

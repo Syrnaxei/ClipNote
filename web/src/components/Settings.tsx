@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { version as APP_VERSION } from '../../package.json';
 import './Settings.css';
 import './ClipboardItem.css';
-import { prefersReducedMotion } from '../motion';
+import { MOTION, SHIFT_EASE, prefersReducedMotion } from '../motion';
 import { PIN_STYLES, type PinStyle } from '../pinStyle';
 import {
   ITEM_ACTIONS,
@@ -90,7 +90,7 @@ const SECTIONS: { id: SectionId; label: string }[] = [
 const PROJECT_URL = 'https://github.com/Syrnaxei/ClipNote';
 
 const ROW_HEIGHT_FALLBACK = 48;
-const ROW_EASE = 'transform 250ms cubic-bezier(0.65, 0, 0.35, 1)';
+const ROW_EASE = `transform ${MOTION.listShift}ms ${SHIFT_EASE}`;
 
 interface SettingsProps {
   theme: 'light' | 'dark';

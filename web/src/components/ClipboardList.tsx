@@ -5,7 +5,7 @@ import ClipboardItemView from './ClipboardItem';
 import ClipboardEditModal from './ClipboardEditModal';
 import PluginConfirmModal from './PluginConfirmModal';
 import PopConfirm from './PopConfirm';
-import { useItemTransitions } from '../useItemTransitions';
+import { useItemTransitions, type ExitingItem } from '../useItemTransitions';
 import { MOTION, motionDelay } from '../motion';
 import './ClipboardList.css';
 
@@ -195,7 +195,35 @@ function ClipboardList({
     dupGroups?.flatMap((group) => group.items.map((item) => item.id)) ?? [],
   );
 
-  const renderItems = useItemTransitions(shown.items, shown.id);
+  const transitions = useItemTransitions(
+    shown.items,
+    shown.id,
+    itemsRef,
+    !shown.loading && !shown.loadError,
+  );
+
+  const renderGhost = ({ item, top, left, width }: ExitingItem) => (
+    <div
+      key={`ghost-${item.id}`}
+      className="item-ghost"
+      style={{ top, left, width }}
+      aria-hidden="true"
+      inert
+    >
+      <ClipboardItemView
+        item={item}
+        duplicate={duplicateIds.has(item.id)}
+        pluginName={activePlugin?.name ?? null}
+        itemActions={itemActions}
+        clipboards={clipboards}
+        onDelete={() => {}}
+        onEdit={() => {}}
+        onMove={async () => {}}
+        onCopy={async () => false}
+        onPlugin={() => {}}
+      />
+    </div>
+  );
 
   const doCopyName = async () => {
     if (clipboard === null) return;
@@ -321,30 +349,31 @@ function ClipboardList({
           </div>
         )}
         {!shown.loading && !shown.loadError &&
-          renderItems.map(({ item, entering, exiting }) => (
+          shown.items.map((item) => (
             <div
               key={item.id}
-              className={`item-slot${entering ? ' is-entering' : ''}${
-                exiting ? ' is-exiting' : ''
+              data-item-id={item.id}
+              className={`item-slot${
+                transitions.entering.has(item.id) ? ' is-entering' : ''
               }`}
             >
-              <div className="item-slot-inner">
-                <ClipboardItemView
-                  item={item}
-                  duplicate={duplicateIds.has(item.id)}
-                  pluginName={activePlugin?.name ?? null}
-                  itemActions={itemActions}
-                  clipboards={clipboards}
-                  onDelete={onDeleteItem}
-                  onEdit={onEditItem}
-                  onMove={onMoveItem}
-                  onCopy={onCopyItem}
-                  onPlugin={setPluginTarget}
-                />
-              </div>
+              <ClipboardItemView
+                item={item}
+                duplicate={duplicateIds.has(item.id)}
+                pluginName={activePlugin?.name ?? null}
+                itemActions={itemActions}
+                clipboards={clipboards}
+                onDelete={onDeleteItem}
+                onEdit={onEditItem}
+                onMove={onMoveItem}
+                onCopy={onCopyItem}
+                onPlugin={setPluginTarget}
+              />
             </div>
           ))}
-        {!shown.loading && !shown.loadError && shown.items.length === 0 && renderItems.length === 0 && (
+        {!shown.loading && !shown.loadError &&
+          transitions.exiting.map(renderGhost)}
+        {!shown.loading && !shown.loadError && shown.items.length === 0 && transitions.exiting.length === 0 && (
           <div className="empty-state">
             <p>暂无内容，在下方输入框添加</p>
           </div>

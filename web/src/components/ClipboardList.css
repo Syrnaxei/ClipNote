@@ -300,11 +300,14 @@ html.mobile .add-item-input {
 }
 
 .clipboard-items {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
   flex: 1;
   overflow-y: auto;
+  /* 让位动画自己负责视觉位移，避免浏览器的 scroll anchoring 再插一脚 */
+  overflow-anchor: none;
   padding-right: 6px;
   transition: opacity 130ms var(--ease-paper);
 }
@@ -332,61 +335,68 @@ html.mobile .add-item-input {
   background: var(--border-strong);
 }
 
-/* ── 条目进出场：容器高度参与动画，让列表整体让位 / 收回 ── */
+/* ── 条目进出场：与设置拖拽同一套「抬起 + 位移」语言 ──
+ *
+ * 槽位始终占据最终布局位置；让位由 JS 用 WAAPI 对槽位做 FLIP transform，
+ * 新卡片只负责自身落下，删除卡片则脱离文档流、在原位抬升淡出。
+ * 这样列表高度不再参与动画，视觉上就是拖拽时整行让位的手感。
+ */
 
 .item-slot {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows var(--dur-list-out) var(--ease-paper);
-}
-
-.item-slot-inner {
-  min-height: 0;
-}
-
-.item-slot.is-entering,
-.item-slot.is-exiting {
-  overflow: hidden;
-}
-
-.item-slot.is-entering {
-  animation: item-slot-open var(--dur-list-in) var(--ease-paper);
+  position: relative;
+  flex: 0 0 auto;
 }
 
 .item-slot.is-entering .clipboard-item-content {
-  animation: item-fall var(--dur-list-in) var(--ease-paper);
+  animation: item-arrive var(--dur-list-in) var(--ease-shift) backwards;
 }
 
-.item-slot.is-exiting {
-  grid-template-rows: 0fr;
+.item-ghost {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
 }
 
-.item-slot.is-exiting .item-slot-inner {
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity 120ms var(--ease-paper);
+.item-ghost .clipboard-item-content {
+  animation: item-lift-out var(--dur-list-out) var(--ease-shift) forwards;
 }
 
-@keyframes item-slot-open {
-  from {
-    grid-template-rows: 0fr;
-  }
-  to {
-    grid-template-rows: 1fr;
-  }
+.item-ghost .action-buttons {
+  display: none;
 }
 
-@keyframes item-fall {
+@keyframes item-arrive {
   from {
     opacity: 0;
-    transform: translateY(-12px) scale(0.985);
+    transform: translateY(-10px) scale(0.985);
+    box-shadow: 0 10px 26px rgba(20, 20, 19, 0.14);
   }
-  55% {
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
+  58% {
+    opacity: 1;
+    box-shadow: 0 8px 22px rgba(20, 20, 19, 0.1);
   }
   to {
     opacity: 1;
-    transform: none;
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 0 rgba(20, 20, 19, 0);
+  }
+}
+
+@keyframes item-lift-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 0 rgba(20, 20, 19, 0);
+  }
+  28% {
+    opacity: 0.96;
+    transform: translateY(-4px) scale(0.994);
+    box-shadow: 0 9px 24px rgba(20, 20, 19, 0.14);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.968);
+    box-shadow: 0 14px 32px rgba(20, 20, 19, 0.1);
   }
 }
 

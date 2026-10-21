@@ -1,100 +1,229 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import type { ClipboardItem } from './types';
-import { MOTION, motionDelay } from './motion';
+import { MOTION, motionDelay, prefersReducedMotion, SHIFT_EASE } from './motion';
 
-export interface RenderItem {
+export interface ExitingItem {
   item: ClipboardItem;
-  entering?: boolean;
-  exiting?: boolean;
+  top: number;
+  left: number;
+  width: number;
+}
+
+export interface ItemTransitions {
+  entering: ReadonlySet<number>;
+  exiting: ExitingItem[];
+}
+
+interface Position {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+interface Snapshot {
+  items: ClipboardItem[];
+  positions: Map<number, Position>;
+}
+
+const EMPTY_IDS: ReadonlySet<number> = new Set();
+const SHIFT_ANIMATION_ID = 'clipnote-list-shift';
+
+function measurePositions(container: HTMLElement): Map<number, Position> {
+  const positions = new Map<number, Position>();
+  container
+    .querySelectorAll<HTMLElement>(':scope > [data-item-id]')
+    .forEach((el) => {
+      const id = Number(el.dataset.itemId);
+      if (!Number.isFinite(id)) return;
+      positions.set(id, {
+        top: el.offsetTop,
+        left: el.offsetLeft,
+        width: el.offsetWidth,
+        height: el.offsetHeight,
+      });
+    });
+  return positions;
+}
+
+function cancelShiftAnimations(container: HTMLElement): void {
+  container
+    .querySelectorAll<HTMLElement>(':scope > [data-item-id]')
+    .forEach((el) => {
+      el.getAnimations().forEach((animation) => {
+        if (animation.id === SHIFT_ANIMATION_ID) animation.cancel();
+      });
+    });
 }
 
 /**
- * 给条目列表补上「进场 / 退场」的渲染信息。
+ * 条目列表的「添加 / 删除」让位动效。
  *
- * - 新出现的条目标记 entering，播 300ms 纸张落下；
- * - 从数据里消失的条目保留 180ms 的退场位（ghost），让高度塌陷带动下方上移；
- * - 首次拿到内容不做进场，避免整屏一起落；
- * - `scopeKey`（剪切板 id）变化时整体换页：清空进出场状态，一条都不动，
- *   否则上一个剪切板的条目会被当成「被删除」而集体塌陷，新的一批又会集体落下。
+ * 与设置里拖动行共用一套语言：位移只走 transform，250ms、
+ * cubic-bezier(0.65, 0, 0.35, 1)，卡片动的时候带一点抬升阴影。
+ *
+ * - 新条目：占好最终位置后，卡片自身从上方 10px 落下（CSS keyframes）；
+ *   旧条目用 FLIP 从原位置滑到新位置，像拖拽时整行让位。
+ * - 删除条目：先从 DOM 移除并留下一个绝对定位的 ghost，ghost 在原位
+ *   抬升淡出；下方条目同样用 FLIP 上移补位，不再收缩容器高度。
+ * - 首屏 / 切换剪切板时只记账不播动画；`ready` 用于区分「还在加载」和
+ *   「确实是一条空列表」，空列表之后的第一条仍然会正常落下。
  */
 export function useItemTransitions(
   items: ClipboardItem[],
-  scopeKey: number | null = null,
-): RenderItem[] {
-  const [enteringIds, setEnteringIds] = useState<number[]>([]);
-  const [ghosts, setGhosts] = useState<{ item: ClipboardItem; index: number }[]>([]);
-  const seenRef = useRef<Set<number>>(new Set());
-  const prevRef = useRef<ClipboardItem[]>([]);
+  scopeKey: number | null,
+  containerRef: RefObject<HTMLElement | null>,
+  ready = true,
+): ItemTransitions {
+  const [entering, setEntering] = useState<ReadonlySet<number>>(EMPTY_IDS);
+  const [exiting, setExiting] = useState<ExitingItem[]>([]);
+  const initializedRef = useRef(false);
+  const awaitingFirstContentRef = useRef(false);
   const scopeRef = useRef<number | null>(scopeKey);
-  const timersRef = useRef<number[]>([]);
+  const seenRef = useRef<Set<number>>(new Set());
+  const prevRef = useRef<Snapshot>({ items: [], positions: new Map() });
+  const timersRef = useRef<Set<number>>(new Set());
 
   useEffect(
     () => () => {
-      timersRef.current.forEach((t) => window.clearTimeout(t));
+      timersRef.current.forEach((timer) => window.clearTimeout(timer));
+      timersRef.current.clear();
     },
     [],
   );
 
-  useEffect(() => {
-    if (scopeRef.current !== scopeKey) {
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const positions = measurePositions(container);
+    const currentIds = new Set(items.map((item) => item.id));
+    const prev = prevRef.current;
+    const scopeChanged =
+      !initializedRef.current || scopeRef.current !== scopeKey;
+
+    if (scopeChanged) {
+      const reset = () => {
+        timersRef.current.forEach((timer) => window.clearTimeout(timer));
+        timersRef.current.clear();
+      };
+      initializedRef.current = true;
       scopeRef.current = scopeKey;
-      seenRef.current = new Set(items.map((item) => item.id));
-      prevRef.current = items;
-      timersRef.current.forEach((t) => window.clearTimeout(t));
-      timersRef.current = [];
-      setEnteringIds([]);
-      setGhosts([]);
+      awaitingFirstContentRef.current = !ready;
+      seenRef.current = new Set(currentIds);
+      prevRef.current = { items, positions };
+      reset();
+      cancelShiftAnimations(container);
+      setEntering(EMPTY_IDS);
+      setExiting((cur) => (cur.length === 0 ? cur : []));
       return;
     }
 
-    const prev = prevRef.current;
-    prevRef.current = items;
+    // 首屏内容 / 切换剪切板后的首批内容只记账，避免整屏一起落下
+    if (awaitingFirstContentRef.current) {
+      prevRef.current = { items, positions };
+      if (!ready) return;
+      awaitingFirstContentRef.current = false;
+      seenRef.current = new Set(currentIds);
+      return;
+    }
 
-    // 首次渲染（或切换剪切板后的空列表）只记账，不播进场
-    if (prev.length === 0) {
+    prevRef.current = { items, positions };
+
+    // 减少动态效果：不建 ghost、不播落下与让位，行为退化为瞬切
+    if (prefersReducedMotion()) {
       items.forEach((item) => seenRef.current.add(item.id));
-      setEnteringIds([]);
+      setEntering(EMPTY_IDS);
+      setExiting((cur) => (cur.length === 0 ? cur : []));
       return;
     }
 
     const fresh = items.filter((item) => !seenRef.current.has(item.id));
     fresh.forEach((item) => seenRef.current.add(item.id));
     if (fresh.length > 0) {
-      const ids = fresh.map((item) => item.id);
-      setEnteringIds((cur) => [...cur, ...ids]);
-      timersRef.current.push(
-        window.setTimeout(() => {
-          setEnteringIds((cur) => cur.filter((id) => !ids.includes(id)));
-        }, motionDelay(MOTION.listIn)),
-      );
+      const freshIds = new Set(fresh.map((item) => item.id));
+      setEntering((cur) => new Set([...cur, ...freshIds]));
+      const timer = window.setTimeout(() => {
+        timersRef.current.delete(timer);
+        setEntering((cur) => {
+          let changed = false;
+          const next = new Set(cur);
+          freshIds.forEach((id) => {
+            if (next.delete(id)) changed = true;
+          });
+          return changed ? next : cur;
+        });
+      }, motionDelay(MOTION.listIn));
+      timersRef.current.add(timer);
     }
 
-    const nextIds = new Set(items.map((item) => item.id));
-    const gone = prev
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => !nextIds.has(item.id));
+    const gone = prev.items.filter((item) => !currentIds.has(item.id));
     if (gone.length > 0) {
-      const goneIds = gone.map((g) => g.item.id);
-      setGhosts((cur) => [
-        ...cur,
-        ...gone.filter((g) => !cur.some((c) => c.item.id === g.item.id)),
-      ]);
-      timersRef.current.push(
-        window.setTimeout(() => {
-          setGhosts((cur) => cur.filter((g) => !goneIds.includes(g.item.id)));
-        }, motionDelay(MOTION.listOut) + 20),
-      );
+      const ghosts = gone.flatMap<ExitingItem>((item) => {
+        const position = prev.positions.get(item.id);
+        if (!position) return [];
+        return [
+          {
+            item,
+            top: position.top,
+            left: position.left,
+            width: position.width,
+          },
+        ];
+      });
+      if (ghosts.length > 0) {
+        const goneIds = new Set(ghosts.map((ghost) => ghost.item.id));
+        setExiting((cur) => {
+          const existing = new Set(cur.map((ghost) => ghost.item.id));
+          const added = ghosts.filter((ghost) => !existing.has(ghost.item.id));
+          return added.length === 0 ? cur : [...cur, ...added];
+        });
+        const timer = window.setTimeout(() => {
+          timersRef.current.delete(timer);
+          setExiting((cur) => cur.filter((ghost) => !goneIds.has(ghost.item.id)));
+        }, motionDelay(MOTION.listOut) + 20);
+        timersRef.current.add(timer);
+      }
     }
-  }, [items]);
 
-  const merged: RenderItem[] = items.map((item) => ({
-    item,
-    entering: enteringIds.includes(item.id),
-  }));
+    // FLIP：按旧布局位置和新布局位置的差值反推 transform，再滑回 0。
+    // offsetTop 不受 transform 影响，所以连续增删时拿到的始终是稳定布局位置。
+    items.forEach((item) => {
+      const from = prev.positions.get(item.id);
+      const to = positions.get(item.id);
+      if (!from || !to) return;
+      const delta = from.top - to.top;
+      if (Math.abs(delta) < 0.5) return;
 
-  ghosts.forEach(({ item, index }) => {
-    merged.splice(Math.min(index, merged.length), 0, { item, exiting: true });
-  });
+      const el = container.querySelector<HTMLElement>(
+        `[data-item-id="${item.id}"]`,
+      );
+      if (!el) return;
+      el.getAnimations().forEach((animation) => {
+        if (animation.id === SHIFT_ANIMATION_ID) animation.cancel();
+      });
 
-  return merged;
+      const animation = el.animate(
+        [
+          { transform: `translateY(${delta}px)` },
+          { transform: 'translateY(0)' },
+        ],
+        {
+          duration: MOTION.listShift,
+          easing: SHIFT_EASE,
+          fill: 'both',
+        },
+      );
+      animation.id = SHIFT_ANIMATION_ID;
+      animation.addEventListener(
+        'finish',
+        () => {
+          animation.cancel();
+        },
+        { once: true },
+      );
+    });
+  }, [items, scopeKey, ready, containerRef]);
+
+  return { entering, exiting };
 }

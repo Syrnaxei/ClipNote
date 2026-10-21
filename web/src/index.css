@@ -47,13 +47,16 @@ code {
 
   /* 动效语言「纸张余韵」 */
   --ease-paper: cubic-bezier(0.22, 0.68, 0.32, 1);
+  /* 列表让位与设置拖拽共用同一条曲线 */
+  --ease-shift: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-fast: 140ms;
   --dur-base: 200ms;
   --dur-exit: 180ms;
   --dur-view-out: 90ms;
   --dur-view-in: 180ms;
   --dur-list-in: 300ms;
-  --dur-list-out: 180ms;
+  --dur-list-out: 240ms;
+  --dur-list-shift: 250ms;
   --dur-nav: 220ms;
 
   /* 浮层 */
