@@ -16,8 +16,6 @@ export const MOTION = {
   overlayOut: 180,
   /** 列表项落下 */
   listIn: 300,
-  /** 列表项抬升退场 */
-  listOut: 240,
   /** 列表让位（与设置拖拽同一时长 / 曲线） */
   listShift: 250,
   /** 设置导航指示滑动 */

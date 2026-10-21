@@ -5,7 +5,7 @@ import ClipboardItemView from './ClipboardItem';
 import ClipboardEditModal from './ClipboardEditModal';
 import PluginConfirmModal from './PluginConfirmModal';
 import PopConfirm from './PopConfirm';
-import { useItemTransitions, type ExitingItem } from '../useItemTransitions';
+import { useItemTransitions } from '../useItemTransitions';
 import { MOTION, motionDelay } from '../motion';
 import './ClipboardList.css';
 
@@ -202,29 +202,6 @@ function ClipboardList({
     !shown.loading && !shown.loadError,
   );
 
-  const renderGhost = ({ item, top, left, width }: ExitingItem) => (
-    <div
-      key={`ghost-${item.id}`}
-      className="item-ghost"
-      style={{ top, left, width }}
-      aria-hidden="true"
-      inert
-    >
-      <ClipboardItemView
-        item={item}
-        duplicate={duplicateIds.has(item.id)}
-        pluginName={activePlugin?.name ?? null}
-        itemActions={itemActions}
-        clipboards={clipboards}
-        onDelete={() => {}}
-        onEdit={() => {}}
-        onMove={async () => {}}
-        onCopy={async () => false}
-        onPlugin={() => {}}
-      />
-    </div>
-  );
-
   const doCopyName = async () => {
     if (clipboard === null) return;
     if (await onCopyItem(clipboard.name)) {
@@ -371,9 +348,7 @@ function ClipboardList({
               />
             </div>
           ))}
-        {!shown.loading && !shown.loadError &&
-          transitions.exiting.map(renderGhost)}
-        {!shown.loading && !shown.loadError && shown.items.length === 0 && transitions.exiting.length === 0 && (
+        {!shown.loading && !shown.loadError && shown.items.length === 0 && (
           <div className="empty-state">
             <p>暂无内容，在下方输入框添加</p>
           </div>

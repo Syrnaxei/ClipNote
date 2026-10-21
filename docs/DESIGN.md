@@ -238,18 +238,18 @@ What makes Claude's design truly distinctive is its warm neutral palette. Every 
 | `--dur-fast` / `--dur-base` | 140ms / 200ms | hover、侧栏折叠、遮罩淡入 |
 | `--dur-exit` | 180ms | 浮层退场（模态、PopConfirm、toast） |
 | `--dur-view-out` / `--dur-view-in` | 90ms / 180ms | 主列表 ↔ 设置 ↔ 插件 |
-| `--dur-list-in` / `--dur-list-out` | 300ms / 240ms | 条目纸张落下 / 抬升淡出 |
+| `--dur-list-in` | 300ms | 条目纸张落下 |
 | `--dur-list-shift` | 250ms | 条目增删时其余条目让位 |
 | `--dur-nav` | 220ms | 设置导航的滑动指示块 |
 
-- 进场 180–300ms，浮层退场统一 180ms；列表条目退场 240ms，让位 250ms
-- 列表增删与设置拖拽共用 `--ease-shift`：位移全部走 `transform`，并用 FLIP 从旧布局位置滑到新位置；卡片动的时候带柔和抬升阴影
-- 位移不超过 8px；新卡片落下 10px、删除抬升 12px 是仅有的两处例外
+- 进场 180–300ms，浮层退场统一 180ms；列表条目让位 250ms
+- 列表增删与设置拖拽共用 `--ease-shift`：位移全部走 `transform`，并用 FLIP 从旧布局位置滑到新位置；新卡片落下时带柔和抬升阴影
+- 位移不超过 8px；新卡片落下 10px 是唯一例外
 - 浮层遮罩 `blur(6px)` + 压暗 0.3；悬浮层本体 `blur(8px) saturate(1.06)`；Header 不加模糊（与内容没有重叠）
 - 主题切换从触发按钮位置用 `clip-path: circle()` 扩散，480ms；浏览器不支持 View Transitions 时直接瞬切
 - 切换剪切板：内容淡出 90ms → 滚动复位 → 淡入 130ms
 - `prefers-reduced-motion: reduce` 下全部退化为瞬切：CSS 媒体查询归零 + `motionDelay()` 让 JS 等待归零，双保险
-- 不做弹跳、不做视差；列表退场不再用容器高度塌陷，改为删除卡片绝对定位抬升淡出
+- 不做弹跳、不做视差；列表删除直接移除条目，不留退场 ghost，下方条目立即用 FLIP 上移补位
 
 ## 7. Do's and Don'ts
 
