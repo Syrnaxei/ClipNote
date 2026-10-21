@@ -110,7 +110,10 @@ function PopConfirm({
             </button>
             <button
               className="popconfirm-confirm"
-              onClick={() => close(onConfirm)}
+              onClick={() => {
+                onConfirm();
+                close();
+              }}
             >
               {confirmText}
             </button>
