@@ -11,12 +11,18 @@ import { copyText } from './clipboard';
 import { connectWs } from './ws';
 import { isMobileDevice } from './mobileDetect';
 import { loadPinStyle, savePinStyle, type PinStyle } from './pinStyle';
+import { loadFollowOnAdd, saveFollowOnAdd } from './listPrefs';
 import {
   loadItemActions,
   saveItemActions,
   type ItemActionSetting,
 } from './itemActions';
 import type { Clipboard, ClipboardItem, DuplicateGroup, Plugin, WsEvent } from './types';
+import {
+  appendChronological,
+  insertChronological,
+  toChronological,
+} from './itemsOrder';
 import { migrateStorageKey } from './storage';
 import { MOTION, motionDelay } from './motion';
 import { revealTheme } from './viewTransition';
@@ -73,6 +79,7 @@ function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [pinStyle, setPinStyle] = useState<PinStyle>(loadPinStyle);
   const [itemActions, setItemActions] = useState<ItemActionSetting>(loadItemActions);
+  const [followOnAdd, setFollowOnAdd] = useState(loadFollowOnAdd);
   const [deviceName, setDeviceName] = useState(
     () => localStorage.getItem(DEVICE_NAME_KEY) ?? '我的电脑',
   );
@@ -140,6 +147,10 @@ function App() {
   }, [itemActions]);
 
   useEffect(() => {
+    saveFollowOnAdd(followOnAdd);
+  }, [followOnAdd]);
+
+  useEffect(() => {
     localStorage.setItem(DEVICE_NAME_KEY, deviceName);
   }, [deviceName]);
 
@@ -149,7 +160,7 @@ function App() {
     const active = activeIdRef.current;
     if (active !== null) {
       const { items } = await api.listItems(active);
-      setItemsByClipboard((prev) => ({ ...prev, [active]: items }));
+      setItemsByClipboard((prev) => ({ ...prev, [active]: toChronological(items) }));
     }
   }, []);
 
@@ -230,10 +241,7 @@ function App() {
               if (!list) return prev;
               return {
                 ...prev,
-                [event.payload.clipboard_id]: [
-                  event.payload,
-                  ...list.filter((i) => i.id !== event.payload.id),
-                ],
+                [event.payload.clipboard_id]: appendChronological(list, event.payload),
               };
             });
             break;
@@ -260,13 +268,7 @@ function App() {
               }
               const to = next[item.clipboard_id];
               if (to && !to.some((i) => i.id === item.id)) {
-                const idx = to.findIndex((i) => i.created_at < item.created_at);
-                const insertAt = idx === -1 ? to.length : idx;
-                next[item.clipboard_id] = [
-                  ...to.slice(0, insertAt),
-                  item,
-                  ...to.slice(insertAt),
-                ];
+                next[item.clipboard_id] = insertChronological(to, item);
               }
               return next;
             });
@@ -311,7 +313,12 @@ function App() {
     ) {
       api
         .listItems(activeId)
-        .then(({ items }) => setItemsByClipboard((prev) => ({ ...prev, [activeId]: items })))
+        .then(({ items }) =>
+          setItemsByClipboard((prev) => ({
+            ...prev,
+            [activeId]: toChronological(items),
+          })),
+        )
         .catch(() => {
           setFailedItemLoads((prev) =>
             prev.has(activeId) ? prev : new Set(prev).add(activeId),
@@ -484,6 +491,8 @@ function App() {
           connected={connected}
           itemActions={itemActions}
           onItemActionsChange={setItemActions}
+          followOnAdd={followOnAdd}
+          onFollowOnAddChange={setFollowOnAdd}
           onBack={() => setView('main')}
           onLogout={() => {
             clearApiKey();
@@ -530,6 +539,8 @@ function App() {
             onDeleteClipboard={handleDeleteClipboard}
             onUpdateClipboard={handleUpdateClipboard}
             onTogglePinned={handleTogglePinned}
+            followOnAdd={followOnAdd}
+            noticeVisible={notice !== null}
           />
         </div>
       )}

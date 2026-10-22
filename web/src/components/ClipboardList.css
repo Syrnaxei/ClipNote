@@ -299,17 +299,78 @@ html.mobile .add-item-input {
   background-color: var(--surface-2);
 }
 
+/* 列表区：滚动容器 + 浮在上面的「新条目」胶囊 */
+.clipboard-list-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 .clipboard-items {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   /* 让位动画自己负责视觉位移，避免浏览器的 scroll anchoring 再插一脚 */
   overflow-anchor: none;
   padding-right: 6px;
+  /* 给「从下方升起」的卡片留出整整 10px 的落点余量：
+   * 卡片升起时不会把可滚动范围撑大，贴底位置也就不会在动画中来回漂移 */
+  padding-bottom: 10px;
   transition: opacity 130ms var(--ease-paper);
+}
+
+/* 条目贴着输入框生长：不足一屏时从底部往上排，空态 / 骨架 / 报错同样贴底 */
+.clipboard-items > :first-child {
+  margin-top: auto;
+}
+
+/* 有新条目落在可视区外时浮出的提示，点一下滚到最新 */
+.new-items-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px 0 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background-color: var(--glass);
+  -webkit-backdrop-filter: blur(var(--blur-float)) saturate(1.06);
+  backdrop-filter: blur(var(--blur-float)) saturate(1.06);
+  box-shadow: var(--whisper);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  pointer-events: none;
+  transition: opacity 140ms var(--ease-paper), transform 140ms var(--ease-paper);
+}
+
+.new-items-pill.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.new-items-pill:hover {
+  border-color: var(--border-strong);
+}
+
+.new-items-pill svg {
+  flex-shrink: 0;
+  color: var(--accent);
 }
 
 /* 切换剪切板：先退 90ms，滚动复位后再用 130ms 淡入 */
@@ -337,9 +398,9 @@ html.mobile .add-item-input {
 
 /* ── 条目进出场：与设置拖拽同一套「位移让位」语言 ──
  *
- * 槽位始终占据最终布局位置；让位由 JS 用 WAAPI 对槽位做 FLIP transform。
- * 新卡片只负责自身落下；删除卡片直接消失，下方条目立即上移补位。
- * 这样列表高度不再参与动画，视觉上就是拖拽时整行让位的手感。
+ * 列表贴着底部生长，槽位始终占据最终布局位置；让位由 JS 用 WAAPI 对槽位做 FLIP。
+ * 新卡片从下方升起；删除卡片直接消失，上方条目立即下滑补位。
+ * 这样列表高度不再参与动画，视觉上就是纸堆抵在桌边、抽走一张后整体落位的手感。
  */
 
 .item-slot {
@@ -354,7 +415,7 @@ html.mobile .add-item-input {
 @keyframes item-arrive {
   from {
     opacity: 0;
-    transform: translateY(-10px) scale(0.985);
+    transform: translateY(10px) scale(0.985);
     box-shadow: 0 10px 26px rgba(20, 20, 19, 0.14);
   }
   58% {

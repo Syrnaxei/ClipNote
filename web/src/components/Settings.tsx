@@ -56,6 +56,16 @@ const NAV_ICONS: Record<SectionId, React.ReactNode> = {
       <path d="M15 3v18" />
     </svg>
   ),
+  list: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="9" y1="6" x2="21" y2="6" />
+      <line x1="9" y1="12" x2="21" y2="12" />
+      <line x1="9" y1="18" x2="21" y2="18" />
+      <circle cx="4" cy="6" r="1" />
+      <circle cx="4" cy="12" r="1" />
+      <circle cx="4" cy="18" r="1" />
+    </svg>
+  ),
   connection: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 12.55a11 11 0 0 1 14.08 0" />
@@ -77,11 +87,12 @@ const NAV_ICONS: Record<SectionId, React.ReactNode> = {
   ),
 };
 
-type SectionId = 'appearance' | 'actions' | 'connection' | 'account' | 'about';
+type SectionId = 'appearance' | 'actions' | 'list' | 'connection' | 'account' | 'about';
 
 const SECTIONS: { id: SectionId; label: string }[] = [
   { id: 'appearance', label: '外观' },
   { id: 'actions', label: '条目操作' },
+  { id: 'list', label: '列表' },
   { id: 'connection', label: '连接' },
   { id: 'account', label: '账户' },
   { id: 'about', label: '关于' },
@@ -102,6 +113,8 @@ interface SettingsProps {
   connected: boolean;
   itemActions: ItemActionSetting;
   onItemActionsChange: (setting: ItemActionSetting) => void;
+  followOnAdd: boolean;
+  onFollowOnAddChange: (value: boolean) => void;
   onBack: () => void;
   onLogout: () => void;
 }
@@ -116,6 +129,8 @@ function Settings({
   connected,
   itemActions,
   onItemActionsChange,
+  followOnAdd,
+  onFollowOnAddChange,
   onBack,
   onLogout,
 }: SettingsProps) {
@@ -498,6 +513,34 @@ function Settings({
                     </span>
                   )}
                 </div>
+              </div>
+            </div>
+          </section>
+
+          <section
+            className="settings-section"
+            ref={(el) => {
+              sectionRefs.current.list = el;
+            }}
+          >
+            <h2 className="settings-section-heading">列表</h2>
+            <div className="settings-card">
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">添加后滚动到底部</span>
+                  <span className="settings-row-desc">
+                    自己添加条目后自动跳到最新一条；关闭后只有已经停在底部时才会跟随
+                  </span>
+                </div>
+                <button
+                  className={`toggle-switch ${followOnAdd ? 'on' : ''}`}
+                  role="switch"
+                  aria-checked={followOnAdd}
+                  aria-label="添加后滚动到底部"
+                  onClick={() => onFollowOnAddChange(!followOnAdd)}
+                >
+                  <span className="toggle-knob" />
+                </button>
               </div>
             </div>
           </section>

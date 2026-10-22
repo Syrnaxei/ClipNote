@@ -6,8 +6,15 @@ import ClipboardEditModal from './ClipboardEditModal';
 import PluginConfirmModal from './PluginConfirmModal';
 import PopConfirm from './PopConfirm';
 import { useItemTransitions } from '../useItemTransitions';
-import { MOTION, motionDelay } from '../motion';
+import { MOTION, motionDelay, prefersReducedMotion } from '../motion';
 import './ClipboardList.css';
+
+/** 距底部这个距离以内就算「已经在看最新一条」 */
+const BOTTOM_TOLERANCE = 24;
+
+function isAtBottom(el: HTMLElement): boolean {
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= BOTTOM_TOLERANCE;
+}
 
 function ClipboardListSkeleton() {
   const widths = ['78%', '64%', '72%'];
@@ -45,6 +52,8 @@ interface ClipboardListProps {
   onDeleteClipboard: (id: number) => void;
   onUpdateClipboard: (id: number, data: { name: string; uuid: string }) => Promise<void>;
   onTogglePinned: (id: number, pinned: boolean) => Promise<void>;
+  followOnAdd: boolean;
+  noticeVisible: boolean;
 }
 
 function ClipboardList({
@@ -68,6 +77,8 @@ function ClipboardList({
   onDeleteClipboard,
   onUpdateClipboard,
   onTogglePinned,
+  followOnAdd,
+  noticeVisible,
 }: ClipboardListProps) {
   const [expanded, setExpanded] = useState(false);
   const [newContent, setNewContent] = useState('');
@@ -110,7 +121,27 @@ function ClipboardList({
   };
   const swapTimerRef = useRef(0);
 
-  useEffect(() => () => window.clearTimeout(swapTimerRef.current), []);
+  /*
+   * 列表贴着底部生长：新条目落到末尾。只有「已经在看最新一条」时才自动跟随，
+   * 否则原地不动，底部浮出「N 条新条目」胶囊；自己刚添加的那条默认特殊对待，
+   * 可以在设置里关掉。
+   */
+  const [unread, setUnread] = useState(0);
+  const [pillCount, setPillCount] = useState(0);
+  const atBottomRef = useRef(true);
+  const scopeRef = useRef(shown.id);
+  const seenIdsRef = useRef(new Set(shown.items.map((item) => item.id)));
+  const selfAddRef = useRef(false);
+  const selfAddTimerRef = useRef(0);
+  const mountedRef = useRef(false);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(swapTimerRef.current);
+      window.clearTimeout(selfAddTimerRef.current);
+    },
+    [],
+  );
 
   useLayoutEffect(() => {
     if (shown.id === activeBoardId) {
@@ -136,9 +167,82 @@ function ClipboardList({
       swapTimerRef.current = 0;
       setShown({ ...latestRef.current });
       setSwitching(false);
-      if (itemsRef.current) itemsRef.current.scrollTop = 0;
+      // 换页后的落位由下面的沉底 effect 负责（新顺序是「最新在下」）
     }, motionDelay(MOTION.switchOut));
   }, [activeBoardId, clipboard?.name, items, loading, loadError, shown]);
+
+  /*
+   * 沉底跟随必须在 useItemTransitions 之前跑：它改的是 scrollTop，
+   * FLIP 的位移要按「布局位置 − 滚动位置」算，顺序反了条目就会跳一帧。
+   */
+  useLayoutEffect(() => {
+    const el = itemsRef.current;
+    if (!el) return;
+    const ids = new Set(shown.items.map((item) => item.id));
+
+    // 首次挂载（含从设置页返回）：直接落在最新一条
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      seenIdsRef.current = ids;
+      el.scrollTop = el.scrollHeight;
+      atBottomRef.current = true;
+      return;
+    }
+
+    // 换剪切板：直接落到底部看最新，不计数
+    if (scopeRef.current !== shown.id) {
+      scopeRef.current = shown.id;
+      seenIdsRef.current = ids;
+      selfAddRef.current = false;
+      setUnread((current) => (current === 0 ? current : 0));
+      el.scrollTop = el.scrollHeight;
+      atBottomRef.current = true;
+      return;
+    }
+
+    let added = 0;
+    ids.forEach((id) => {
+      if (!seenIdsRef.current.has(id)) added += 1;
+    });
+    seenIdsRef.current = ids;
+
+    if (added === 0) {
+      atBottomRef.current = isAtBottom(el);
+      return;
+    }
+
+    const selfAdd = selfAddRef.current;
+    selfAddRef.current = false;
+    if (atBottomRef.current || (selfAdd && followOnAdd)) {
+      el.scrollTop = el.scrollHeight;
+      setUnread((current) => (current === 0 ? current : 0));
+    } else {
+      setUnread((current) => current + added);
+    }
+    atBottomRef.current = isAtBottom(el);
+  }, [shown, followOnAdd]);
+
+  const handleItemsScroll = () => {
+    const el = itemsRef.current;
+    if (!el) return;
+    const atBottom = isAtBottom(el);
+    atBottomRef.current = atBottom;
+    if (atBottom) setUnread((current) => (current === 0 ? current : 0));
+  };
+
+  const jumpToNewest = () => {
+    const el = itemsRef.current;
+    if (!el) return;
+    setUnread(0);
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
+  };
+
+  useEffect(() => {
+    if (unread > 0) setPillCount(unread);
+  }, [unread]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -185,8 +289,17 @@ function ClipboardList({
   const submitNewItem = async () => {
     const content = newContent.trim();
     if (!content || clipboard === null) return;
+    // 先置位：条目经 WS 推回来，可能比 POST 的响应还早到
+    selfAddRef.current = true;
+    window.clearTimeout(selfAddTimerRef.current);
+    selfAddTimerRef.current = window.setTimeout(() => {
+      selfAddRef.current = false;
+    }, 3000);
     const ok = await onAddItem(content);
-    if (!ok) return;
+    if (!ok) {
+      selfAddRef.current = false;
+      return;
+    }
     setNewContent('');
     setExpanded(false);
   };
@@ -312,47 +425,76 @@ function ClipboardList({
         </div>
       )}
 
-      <div
-        className={`clipboard-items ${switching ? 'is-switching' : ''}`}
-        ref={itemsRef}
-      >
-        {shown.loading && <ClipboardListSkeleton />}
-        {shown.loadError && (
-          <div className="empty-state">
-            <p>条目加载失败</p>
-            <button className="load-retry-button" onClick={onRetryLoad}>
-              重试
-            </button>
-          </div>
-        )}
-        {!shown.loading && !shown.loadError &&
-          shown.items.map((item) => (
-            <div
-              key={item.id}
-              data-item-id={item.id}
-              className={`item-slot${
-                transitions.entering.has(item.id) ? ' is-entering' : ''
-              }`}
-            >
-              <ClipboardItemView
-                item={item}
-                duplicate={duplicateIds.has(item.id)}
-                pluginName={activePlugin?.name ?? null}
-                itemActions={itemActions}
-                clipboards={clipboards}
-                onDelete={onDeleteItem}
-                onEdit={onEditItem}
-                onMove={onMoveItem}
-                onCopy={onCopyItem}
-                onPlugin={setPluginTarget}
-              />
+      <div className="clipboard-list-body">
+        <div
+          className={`clipboard-items ${switching ? 'is-switching' : ''}`}
+          ref={itemsRef}
+          onScroll={handleItemsScroll}
+        >
+          {shown.loading && <ClipboardListSkeleton />}
+          {shown.loadError && (
+            <div className="empty-state">
+              <p>条目加载失败</p>
+              <button className="load-retry-button" onClick={onRetryLoad}>
+                重试
+              </button>
             </div>
-          ))}
-        {!shown.loading && !shown.loadError && shown.items.length === 0 && (
-          <div className="empty-state">
-            <p>暂无内容，在下方输入框添加</p>
-          </div>
-        )}
+          )}
+          {!shown.loading && !shown.loadError &&
+            shown.items.map((item) => (
+              <div
+                key={item.id}
+                data-item-id={item.id}
+                className={`item-slot${
+                  transitions.entering.has(item.id) ? ' is-entering' : ''
+                }`}
+              >
+                <ClipboardItemView
+                  item={item}
+                  duplicate={duplicateIds.has(item.id)}
+                  pluginName={activePlugin?.name ?? null}
+                  itemActions={itemActions}
+                  clipboards={clipboards}
+                  onDelete={onDeleteItem}
+                  onEdit={onEditItem}
+                  onMove={onMoveItem}
+                  onCopy={onCopyItem}
+                  onPlugin={setPluginTarget}
+                />
+              </div>
+            ))}
+          {!shown.loading && !shown.loadError && shown.items.length === 0 && (
+            <div className="empty-state">
+              <p>暂无内容，在下方输入框添加</p>
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          className={`new-items-pill ${
+            unread > 0 && !noticeVisible ? 'is-visible' : ''
+          }`}
+          onClick={jumpToNewest}
+          tabIndex={unread > 0 && !noticeVisible ? 0 : -1}
+          aria-hidden={unread > 0 && !noticeVisible ? undefined : true}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <polyline points="19 12 12 19 5 12"></polyline>
+          </svg>
+          {pillCount} 条新条目
+        </button>
       </div>
 
       <div className="list-footer">
