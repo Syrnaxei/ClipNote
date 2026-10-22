@@ -123,7 +123,7 @@ CREATE INDEX idx_items_hash ON clipboard_items(clipboard_id, content_hash);
 - **文本存储**：`content` 用 SQLite `TEXT` 类型，UTF-8 编码，对内容长度不做应用层假设（SQLite 单值上限 1GB，远超需求）。
 - **内容哈希**：条目写入与编辑时均计算 SHA-256 并存储，供"检查重复"端点高效比对（同哈希即视为内容完全相同）；不做任何自动去重/置顶行为。
 - **重复检查**：`GET /api/clipboards/:id/duplicates` 按 `content_hash` 分组，返回条目数 > 1 的组，供前端"检查重复"按钮调用。
-- **排序**：条目列表按 `created_at DESC`（最新在前）。
+- **排序**：接口按 `created_at DESC`（最新在前）返回；Web 端渲染为时间正序（最旧在上、最新在下），新条目追加到列表末尾并贴着输入框生长。
 - **时间戳**：统一 UTC ISO-8601 字符串，由数据库默认值生成，前端本地化显示。
 - **备份**：数据文件挂载在 docker volume，备份用 `VACUUM INTO` 或直接停机拷贝。
 
