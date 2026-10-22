@@ -6,7 +6,13 @@ import ClipboardEditModal from './ClipboardEditModal';
 import PluginConfirmModal from './PluginConfirmModal';
 import PopConfirm from './PopConfirm';
 import { useItemTransitions } from '../useItemTransitions';
-import { MOTION, motionDelay, prefersReducedMotion } from '../motion';
+import {
+  easePaper,
+  MOTION,
+  motionDelay,
+  prefersReducedMotion,
+  scrollToLatestDuration,
+} from '../motion';
 import './ClipboardList.css';
 
 /** 距底部这个距离以内就算「已经在看最新一条」 */
@@ -134,11 +140,49 @@ function ClipboardList({
   const selfAddRef = useRef(false);
   const selfAddTimerRef = useRef(0);
   const mountedRef = useRef(false);
+  const scrollAnimRef = useRef(0);
+
+  const cancelScrollAnim = () => {
+    if (scrollAnimRef.current !== 0) {
+      cancelAnimationFrame(scrollAnimRef.current);
+      scrollAnimRef.current = 0;
+    }
+  };
+
+  /**
+   * 平滑滚到最新一条。自己添加时如果离底部很远，直接瞬移很生硬，
+   * 这里用和 CSS 同一条「纸张余韵」曲线补间；用户中途自己滚动就让位。
+   */
+  const animateScrollToLatest = (el: HTMLDivElement) => {
+    cancelScrollAnim();
+    const from = el.scrollTop;
+    const distance = el.scrollHeight - el.clientHeight - from;
+    if (distance <= 0) return;
+    if (prefersReducedMotion()) {
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    const duration = scrollToLatestDuration(distance);
+    const started = performance.now();
+    let expected = from;
+    const step = (now: number) => {
+      scrollAnimRef.current = 0;
+      // 位置被别的来源改过（用户滚动、内容高度变化）就不再抢滚动条
+      if (Math.abs(el.scrollTop - expected) > 2) return;
+      const progress = Math.min(1, (now - started) / duration);
+      const target = el.scrollHeight - el.clientHeight;
+      expected = from + (target - from) * easePaper(progress);
+      el.scrollTop = expected;
+      if (progress < 1) scrollAnimRef.current = requestAnimationFrame(step);
+    };
+    scrollAnimRef.current = requestAnimationFrame(step);
+  };
 
   useEffect(
     () => () => {
       window.clearTimeout(swapTimerRef.current);
       window.clearTimeout(selfAddTimerRef.current);
+      cancelAnimationFrame(scrollAnimRef.current);
     },
     [],
   );
@@ -194,6 +238,7 @@ function ClipboardList({
       scopeRef.current = shown.id;
       seenIdsRef.current = ids;
       selfAddRef.current = false;
+      cancelScrollAnim();
       setUnread((current) => (current === 0 ? current : 0));
       el.scrollTop = el.scrollHeight;
       atBottomRef.current = true;
@@ -213,9 +258,15 @@ function ClipboardList({
 
     const selfAdd = selfAddRef.current;
     selfAddRef.current = false;
-    if (atBottomRef.current || (selfAdd && followOnAdd)) {
+    if (atBottomRef.current) {
+      // 本来就贴着底部：瞬时落位，让位交给 FLIP，新卡片从下方升起
+      cancelScrollAnim();
       el.scrollTop = el.scrollHeight;
       setUnread((current) => (current === 0 ? current : 0));
+    } else if (selfAdd && followOnAdd) {
+      // 离底部很远：滚过去，别把整屏内容瞬移
+      setUnread((current) => (current === 0 ? current : 0));
+      animateScrollToLatest(el);
     } else {
       setUnread((current) => current + added);
     }
@@ -234,10 +285,7 @@ function ClipboardList({
     const el = itemsRef.current;
     if (!el) return;
     setUnread(0);
-    el.scrollTo({
-      top: el.scrollHeight,
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-    });
+    animateScrollToLatest(el);
   };
 
   useEffect(() => {

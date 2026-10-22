@@ -30,6 +30,34 @@ export const MOTION = {
 /** 列表让位与设置拖拽共用的缓动，与 CSS `--ease-shift` 保持一致。 */
 export const SHIFT_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)';
 
+/** 滚到最新一条的距离 → 时长：近处快、远处慢，但不超过 420ms。 */
+export function scrollToLatestDuration(distance: number): number {
+  return Math.min(420, 200 + Math.abs(distance) * 0.2);
+}
+
+/**
+ * 「纸张余韵」主缓动 `cubic-bezier(0.22, 0.68, 0.32, 1)` 的 JS 版本。
+ *
+ * 给 rAF 补间的滚动用（`scrollTo({ behavior: 'smooth' })` 用的是浏览器的曲线，
+ * 和这套动态语言对不上）。先用二分由 x 反解曲线参数 t，再求 y。
+ */
+export function easePaper(x: number): number {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const curve = (t: number, p1: number, p2: number) => {
+    const u = 1 - t;
+    return 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t;
+  };
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 20; i += 1) {
+    const mid = (lo + hi) / 2;
+    if (curve(mid, 0.22, 0.32) < x) lo = mid;
+    else hi = mid;
+  }
+  return curve((lo + hi) / 2, 0.68, 1);
+}
+
 /** 系统是否要求减少动态效果。 */
 export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || !window.matchMedia) return false;

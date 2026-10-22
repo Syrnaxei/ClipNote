@@ -9,13 +9,6 @@ export interface ItemTransitions {
 const EMPTY_IDS: ReadonlySet<number> = new Set();
 const SHIFT_ANIMATION_ID = 'clipnote-list-shift';
 
-/**
- * 让位只处理「一行左右」的位移。超过这个距离就不是让位了，而是滚动跳转
- * （例如在顶部时自己添加条目、被拽到最新一条）：这时整屏卡片一起滑动会互相压住，
- * 所以直接跟随滚动瞬移，只保留新卡片自己的进场。
- */
-const MAX_SHIFT = 200;
-
 /** 一次提交结束时的布局快照，用来算 FLIP 的起点。 */
 interface Snapshot {
   /** 每个条目的布局位置；offsetTop 不受 transform 影响，连续增删时始终稳定 */
@@ -163,7 +156,7 @@ export function useItemTransitions(
       const to = offsets.get(item.id);
       if (from === undefined || to === undefined) return;
       const delta = from - prev.scrollTop - (to - scrollTop);
-      if (Math.abs(delta) < 0.5 || Math.abs(delta) > MAX_SHIFT) return;
+      if (Math.abs(delta) < 0.5) return;
 
       const el = container.querySelector<HTMLElement>(
         `[data-item-id="${item.id}"]`,
