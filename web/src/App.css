@@ -60,11 +60,8 @@
   align-items: center;
   gap: 14px;
   padding: 12px 18px;
-  border: 1px solid var(--glass-border);
   border-radius: 10px;
-  background-color: var(--glass);
-  -webkit-backdrop-filter: blur(var(--blur-float)) saturate(1.06);
-  backdrop-filter: blur(var(--blur-float)) saturate(1.06);
+  background-color: var(--surface-3);
   box-shadow: var(--whisper);
   z-index: 1100;
   animation: notice-in var(--dur-base) var(--ease-paper);

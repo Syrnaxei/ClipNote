@@ -1,23 +1,15 @@
 .selection-toolbar {
   position: fixed;
   z-index: 1000;
-  background: var(--glass);
-  -webkit-backdrop-filter: blur(var(--blur-float)) saturate(1.06);
-  backdrop-filter: blur(var(--blur-float)) saturate(1.06);
-  border: 1px solid var(--glass-border);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
   border-radius: 10px;
   padding: 6px 10px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14),
-    0 1px 0 rgba(255, 255, 255, 0.45) inset;
+  box-shadow: var(--whisper);
   display: flex;
   align-items: center;
   gap: 2px;
   animation: selection-toolbar-in var(--dur-fast) var(--ease-paper);
-}
-
-:root[data-theme='dark'] .selection-toolbar {
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45),
-    0 1px 0 rgba(255, 255, 255, 0.05) inset;
 }
 
 @keyframes selection-toolbar-in {
