@@ -338,8 +338,9 @@ html.mobile .add-item-input {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 14px 0 12px;
+  /* 与 SelectionToolbar 等高：1px 边框 + 6px 容器内边距 + 31px 按钮 */
+  height: 45px;
+  padding: 0 18px;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background-color: var(--surface-2);
