@@ -341,7 +341,7 @@ html.mobile .add-item-input {
   height: 32px;
   padding: 0 14px 0 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: 10px;
   background-color: var(--surface-2);
   box-shadow: var(--whisper);
   color: var(--text);
@@ -364,11 +364,6 @@ html.mobile .add-item-input {
 
 .new-items-pill:hover {
   background-color: var(--surface-3);
-}
-
-.new-items-pill svg {
-  flex-shrink: 0;
-  color: var(--accent);
 }
 
 /* 切换剪切板：先退 90ms，滚动复位后再用 130ms 淡入 */
