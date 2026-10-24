@@ -97,11 +97,16 @@ function ClipboardList({
   const nameCopyTimerRef = useRef<number>(0);
   const itemsRef = useRef<HTMLDivElement>(null);
   const [switching, setSwitching] = useState(false);
+  /* 标题的「翻页」相位：与内容淡出/淡入同拍，见下方 useLayoutEffect */
+  const [titlePhase, setTitlePhase] = useState<'idle' | 'out' | 'in'>('idle');
 
   /*
    * 切换剪切板：旧内容先淡出 90ms，换上新内容并复位滚动位置后再淡入 130ms。
    * 展示层读 shown 快照，内容在淡出结束的那一刻才真正换掉——否则新列表会先闪一帧
    * 再整体淡出，看上去像是抖动。
+   *
+   * 标题走同一条时间线：淡出开始时旧名上滑淡出（is-out），换名那一刻新名自下方
+   * 升起（is-in）。文字正好在两个相位交接、透明度为 0 的那一帧替换，所以看不到换字。
    */
   const activeBoardId = clipboard?.id ?? null;
   const [shown, setShown] = useState({
@@ -204,13 +209,16 @@ function ClipboardList({
     // 首次选中 / 取消选中不做淡入淡出
     if (shown.id === null || activeBoardId === null) {
       setShown({ ...latestRef.current });
+      setTitlePhase('idle');
       return;
     }
     setSwitching(true);
+    setTitlePhase('out');
     swapTimerRef.current = window.setTimeout(() => {
       swapTimerRef.current = 0;
       setShown({ ...latestRef.current });
       setSwitching(false);
+      setTitlePhase('in');
       // 换页后的落位由下面的沉底 effect 负责（新顺序是「最新在下」）
     }, motionDelay(MOTION.switchOut));
   }, [activeBoardId, clipboard?.name, items, loading, loadError, shown]);
@@ -376,7 +384,15 @@ function ClipboardList({
     <div className="clipboard-list-container">
       <div className="clipboard-list-header">
         <div className="header-title-group">
-          <h2>{shown.name ?? '未选择剪切板'}</h2>
+          <div className="header-title-slot">
+            <h2
+              className={`clipboard-title${
+                titlePhase === 'idle' ? '' : ` is-${titlePhase}`
+              }`}
+            >
+              {shown.name ?? '未选择剪切板'}
+            </h2>
+          </div>
           {clipboard !== null && (
             <button
               className={`header-copy-button ${nameCopied ? 'copied' : ''}`}

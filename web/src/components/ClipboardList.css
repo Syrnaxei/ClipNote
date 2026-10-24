@@ -24,13 +24,54 @@
   min-width: 0;
 }
 
+/* 标题的「翻页窗口」：定高 + 裁切，上下滑动时文字被切在框里而不是溢到 header 上。
+ * 高度取 1.2em（= 26px × 1.2，与 h2 行盒等高），静态时一个像素都不裁。 */
+.header-title-slot {
+  display: block;
+  min-width: 0;
+  font-size: 26px;
+  line-height: 1.2;
+  height: 1.2em;
+  overflow: hidden;
+}
+
 .clipboard-list-header h2 {
   margin: 0;
-  font-size: 26px;
+  font-size: inherit;
   color: var(--text);
   font-weight: 600;
-  line-height: 1.2;
+  line-height: inherit;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 切换剪切板：旧名上滑 7px 淡出 90ms → 换字 → 新名自下方 7px 升起 130ms。
+ * 文字在透明度为 0 的那一帧替换，时长与列表淡出淡入、MOTION.switchOut/switchIn 同拍。 */
+.clipboard-title.is-out {
+  animation: clipboard-title-out 90ms var(--ease-paper) forwards;
+}
+
+.clipboard-title.is-in {
+  animation: clipboard-title-in 130ms var(--ease-paper) both;
+}
+
+@keyframes clipboard-title-out {
+  to {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes clipboard-title-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .header-copy-button {
