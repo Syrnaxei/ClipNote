@@ -20,6 +20,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify lockfiles in sync
+        # npm ci 遇到 package.json 与 lockfile 不同步会直接失败，
+        # 在构建前暴露依赖清单与 lockfile 漂移（dry-run 不写 node_modules）
+        run: |
+          npm ci --dry-run --ignore-scripts --prefix web
+          npm ci --dry-run --ignore-scripts --prefix server
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
