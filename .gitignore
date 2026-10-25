@@ -1,9 +1,10 @@
 # dependencies
 node_modules/
 
-# build output
+# build output（docker/ 为部署暂存区：compose/Caddyfile/.env.example 常驻但不跟踪；
+# Dockerfile 与 .dockerignore 已上移至根目录并入库，构建上下文为仓库根目录）
 dist/
-build/
+docker/
 
 # runtime data
 server/data/

@@ -33,16 +33,19 @@
 ## 2. 文件清单
 
 ```
-clipnote/
-├── app/Dockerfile            # 多阶段构建：web-build（Vite 产物）→ server-build（tsc+prune）
+clipnote/（部署目录 = 仓库检出或同步的源码树，根目录即构建上下文）
+├── Dockerfile                # 多阶段构建：web-build（Vite 产物）→ server-build（tsc+prune）
 │                             #   → 运行时合并；better-sqlite3 v13 为 N-API 预编译二进制
 │                             #   随包分发，构建无需任何编译工具链
-├── caddy/Caddyfile           # 仅反代扩展使用：默认 :80 纯反代，顶部含 TLS 启用模板
-├── docker-compose.yml        # 国际版（官方镜像源）
-├── docker-compose.cn.yml     # 中国大陆专用版（镜像加速 + npmmirror）
-├── docker-compose.proxy.yml  # 可选反代扩展 overlay（平时不启用）
-├── .env.example              # 环境变量模板（复制为 .env 使用）
-└── docs/DEPLOY.md            # 本文档
+├── .dockerignore             # 排除 .git/node_modules/.env 等，上下文只留构建所需
+├── server/                   # 后端源码（构建上下文引用）
+├── web/                      # 前端源码（构建上下文引用）
+└── docker/
+    ├── caddy/Caddyfile       # 仅反代扩展使用：默认 :80 纯反代，顶部含 TLS 启用模板
+    ├── docker-compose.yml    # 国际版（官方镜像源）
+    ├── docker-compose.cn.yml # 中国大陆专用版（镜像加速 + npmmirror）
+    ├── docker-compose.proxy.yml  # 可选反代扩展 overlay（平时不启用）
+    └── .env.example          # 环境变量模板（复制为 .env 使用）
 ```
 
 两版 compose 的服务编排完全一致，仅构建/拉取源不同：
@@ -60,8 +63,8 @@ clipnote/
 前置要求：Docker Engine 20.10+ 与 Docker Compose v2（`docker compose version` 可查）。
 
 ```bash
-# 1. 进入项目根目录
-cd clipnote
+# 1. 进入部署目录（仓库根目录即构建上下文）
+cd clipnote/docker
 
 # 2. 配置环境变量
 cp .env.example .env
@@ -84,6 +87,53 @@ docker compose -f docker-compose.cn.yml up -d --build
 ```
 
 首次构建约需几分钟；中国版全程只走国内镜像源与 npm registry，不依赖 GitHub/Docker Hub 直连。
+
+### 镜像拉取安装（免构建）
+
+已发布的多架构镜像（`linux/amd64` + `linux/arm64`）托管于 GHCR：
+
+```
+ghcr.io/syrnaxei/clipnote
+```
+
+tag 规则：`latest`（最新发布）、`1.5`（主.次版本）、`1.5.0`（精确版本）。
+
+**方式一：docker run 一条命令**
+
+```bash
+docker run -d --name clipnote \
+  -p 31291:3000 \
+  -e API_KEY=$(openssl rand -hex 32) \
+  -v clipnote-data:/data \
+  --restart unless-stopped \
+  ghcr.io/syrnaxei/clipnote:latest
+```
+
+**方式二：docker compose**
+
+```yaml
+services:
+  app:
+    image: ghcr.io/syrnaxei/clipnote:latest
+    ports:
+      - "${CLIPNOTE_PORT:-31291}:3000"
+    environment:
+      API_KEY: ${API_KEY:?API_KEY is required - set it in .env}
+    volumes:
+      - clipnote-data:/data
+    restart: unless-stopped
+
+volumes:
+  clipnote-data:
+```
+
+```bash
+echo "API_KEY=$(openssl rand -hex 32)" > .env
+docker compose up -d
+```
+
+> - GHCR 在中国大陆直连不稳定，拉取失败时可为 Docker 配置代理，或回退源码构建（中国版 compose）。
+> - 升级：`docker pull` 新 tag 后重建容器即可，数据在 `clipnote-data` 卷中不受影响。
 
 ## 4. 环境变量
 

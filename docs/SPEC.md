@@ -226,17 +226,17 @@ CREATE INDEX idx_items_hash ON clipboard_items(clipboard_id, content_hash);
 ## 7. 部署（Docker Compose）
 
 ```
-clipnote/（部署构建产物,由 scripts/build.sh 组装）
-├── app/                  # 唯一构建上下文（单容器）
-│   ├── Dockerfile        # 多阶段:web-build（Vite）→ server-build（tsc+prune）→ 运行时合并
-│   ├── server/           # server/package.json、tsconfig、src/
-│   └── web/              # web/package.json、tsconfig、vite.config、index.html、src/、public/
-├── caddy/
-│   └── Caddyfile         # 仅 proxy 扩展使用:默认 :80 纯反代,顶部含 TLS 启用模板
-├── docker-compose.yml
-├── docker-compose.cn.yml
-├── docker-compose.proxy.yml   # 可选反代扩展 overlay
-└── docs/SPEC.md
+clipnote/（仓库根目录即构建上下文）
+├── Dockerfile            # 多阶段:web-build（Vite）→ server-build（tsc+prune）→ 运行时合并
+├── .dockerignore         # 排除 .git/node_modules/.env 等,上下文只留 server/ 与 web/ 所需
+├── server/               # server/package.json、tsconfig、src/
+├── web/                  # web/package.json、tsconfig、vite.config、index.html、src/、public/
+└── docker/               # 部署暂存区（不跟踪）:compose/Caddyfile/.env.example
+    ├── caddy/
+    │   └── Caddyfile     # 仅 proxy 扩展使用:默认 :80 纯反代,顶部含 TLS 启用模板
+    ├── docker-compose.yml
+    ├── docker-compose.cn.yml
+    └── docker-compose.proxy.yml   # 可选反代扩展 overlay
 ```
 
 `docker-compose.yml` 关键点：

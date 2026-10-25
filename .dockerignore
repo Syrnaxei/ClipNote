@@ -1,0 +1,33 @@
+# 构建上下文为仓库根目录，镜像只需 server/ 与 web/ 的源码和清单文件，
+# 其余一律排除（尤其 .git、node_modules、.env）
+.git
+.github
+.idea
+.claude
+.scratch
+.vscode
+
+# 文档 / 资源 / 工具脚本
+docs
+assets
+Preview
+extensions
+scripts
+docker
+*.md
+LICENSE
+CONTEXT.md
+
+# 依赖与构建产物
+**/node_modules
+**/dist
+**/data
+**/*.tsbuildinfo
+**/*.log
+
+# 环境与数据库
+.env
+**/.env
+*.db
+*.db-wal
+*.db-shm
