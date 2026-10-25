@@ -69,21 +69,21 @@ docker compose up -d --build
 
 ## 技术架构
 
-采用 Caddy（静态托管 + 反向代理）+ Node.js 服务 + SQLite（WAL 模式）的组合，通过 Docker Compose 多阶段构建一键部署。
+采用单容器架构：Node.js 服务（Express 5）自持静态文件托管（SPA）+ `/api` + `/ws`，数据落 SQLite（WAL 模式），通过 Docker Compose 多阶段构建一键部署。可选叠加 Caddy 反代扩展位以接入 HTTPS/域名（见 docs/DEPLOY.md）。
 
 ```
- 桌面端脚本 ────────►  Caddy  ────►  server (Node.js)
- iOS 快捷指令 ──────►  :80         Express + ws + better-sqlite3
- 浏览器 ◄──────────►  静态文件      │
-                                 SQLite 卷（WAL 模式）
+ 桌面端脚本 ────────►  app (Node.js, 单容器)
+ iOS 快捷指令 ──────►  :3000  Express + ws + better-sqlite3
+ 浏览器 ◄──────────►  静态文件（SPA）   │
+                                     SQLite 卷（WAL 模式）
 ```
 
 | 层 | 技术 |
 |----|------|
-| Server | Node.js 22 + TypeScript + Express 5 + ws + better-sqlite3 + zod |
-| Web | React 19 + Vite + TypeScript |
-| 代理 | Caddy（静态托管 + `/api/*`、`/ws` 反代） |
-| 部署 | Docker Compose 多阶段构建 |
+| Server | Node.js 22 + TypeScript + Express 5 + ws + better-sqlite3 + zod + compression |
+| Web | React 19 + Vite + TypeScript（构建产物由 server 托管） |
+| 部署 | Docker Compose 多阶段构建，单容器 |
+| 可选反代 | Caddy 扩展位（`docker-compose.proxy.yml`，HTTPS/域名接入） |
 
 本地开发一键启动前后端环境：
 

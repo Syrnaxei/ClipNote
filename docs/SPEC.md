@@ -29,34 +29,32 @@ ClipNote 是一个**纯文本剪切板多设备同步服务**。用户在任何�
                     ┌─────────────────────────────────────────┐
                     │           Docker Compose (服务器)        │
                     │                                         │
- 桌面端脚本 ────────►│  ┌──────────┐    ┌───────────────────┐  │
- iOS 快捷指令 ──────►│  │  Caddy   │───►│  server (Node.js) │  │
- (HTTP + API Key)   │  │ (反向代理) │    │  Express + ws     │  │
-                    │  │          │    │  better-sqlite3   │  │
- 浏览器 ◄───────────►│  │  :80     │    └───────┬───────────┘  │
- (Web UI)           │  │  静态文件  │            │              │
-                    │  └──────────┘      ┌──────▼──────┐       │
-                    │                    │ SQLite 卷    │       │
-                    │                    │ (WAL 模式)   │       │
-                    │                    └─────────────┘       │
+ 桌面端脚本 ────────►│  ┌───────────────────────────────────┐  │
+ iOS 快捷指令 ──────►│  │  app (Node.js, 单容器)             │  │
+ (HTTP + API Key)   │  │  Express + ws + better-sqlite3    │  │
+                    │  │  :3000                            │  │
+ 浏览器 ◄───────────►│  │  静态文件（SPA）/ api / ws          │  │
+ (Web UI)           │  └────────────────┬──────────────────┘  │
+                    │            ┌──────▼──────┐               │
+                    │            │ SQLite 卷    │               │
+                    │            │ (WAL 模式)   │               │
+                    │            └─────────────┘               │
                     └─────────────────────────────────────────┘
 ```
 
-三个容器：
+单容器：
 
 | 容器 | 职责 | 说明 |
 |------|------|------|
-| `caddy` | 反向代理 + 静态文件托管 | 托管前端构建产物，`/api/*` 与 `/ws` 反代到 server；对外暴露唯一端口 |
-| `server` | REST API + WebSocket + SQLite | Node.js 运行时，不对外直接暴露端口 |
-| （前端无独立容器） | 前端在构建阶段产出静态文件 | 构建产物以 volume/bind mount 方式交给 Caddy 托管 |
+| `app` | 静态文件（SPA）+ REST API + WebSocket + SQLite | Express 用 `express.static` 托管前端构建产物（挂载于鉴权之前），`/api` 与 `/ws` 走鉴权；对外暴露唯一端口。构建期由多阶段 Dockerfile 先行产出前端产物（Vite）再并入镜像 `/app/public` |
 
 路由规则：
 
-- `/` → 前端静态文件（SPA fallback 到 `index.html`）
-- `/api/*` → `server:PORT`
-- `/ws` → `server:PORT`（WebSocket 升级）
+- `/` → 静态文件（SPA fallback 到 `index.html`，跳过 `/api/*` 与 `/ws`）
+- `/api/*` → 鉴权后进路由（Express 原生）
+- `/ws` → WebSocket 升级（鉴权独立处理）
 
-对外端口由 `docker-compose.yml` 的 `ports` 映射决定（如 `31291:80`），外部访问方式为 `http://<服务器IP>:31291`。
+对外端口由 `docker-compose.yml` 的 `ports` 映射决定（如 `31291:3000`），外部访问方式为 `http://<服务器IP>:31291`。可选叠加 Caddy 反代扩展（`docker-compose.proxy.yml`）接入 HTTPS/域名，见 DEPLOY.md。
 
 ## 3. 技术选型
 
@@ -67,8 +65,9 @@ ClipNote 是一个**纯文本剪切板多设备同步服务**。用户在任何�
 | WebSocket | `ws` | 轻量、无依赖、与 Express 共享 HTTP server |
 | 数据库 | SQLite（better-sqlite3，WAL 模式） | 单机部署零运维、事务保证、备份即拷贝文件；剪贴板写入频率低，SQLite 完全够用 |
 | 前端 | React 19 + **Vite**（自 CRA 迁移） | CRA 已停止维护；Vite 构建快、配置简单 |
-| 反向代理 | Caddy | 配置极简（约 10 行 Caddyfile），单容器搞定静态托管 + 反代 + WS 透传 |
-| 容器化 | Docker Compose | 多阶段构建，最终镜像精简 |
+| 压缩 | compression | 运行时 gzip，覆盖静态与 API 响应（单容器后由应用层替代原 Caddy `encode gzip`） |
+| 容器化 | Docker Compose | 多阶段构建，最终镜像精简；单容器 + 可选 Caddy 反代扩展位 |
+| 可选反代 | Caddy（`docker-compose.proxy.yml`） | 平时不启用；未来 HTTPS/域名接入时叠加，TLS 模板预置于 Caddyfile |
 
 ### 3.1 语言与工程化
 
@@ -227,28 +226,25 @@ CREATE INDEX idx_items_hash ON clipboard_items(clipboard_id, content_hash);
 ## 7. 部署（Docker Compose）
 
 ```
-clipnote/
-├── server/               # Node.js 后端
-│   ├── src/
-│   ├── package.json
-│   └── Dockerfile        # 多阶段：build → node:22-alpine 运行
-├── web/                  # 前端（自 Preview 迁移 + Vite 化）
-│   ├── src/
-│   ├── package.json
-│   └── Dockerfile        # 单阶段构建，仅产出静态文件（stage 目标）
+clipnote/（部署构建产物,由 scripts/build.sh 组装）
+├── app/                  # 唯一构建上下文（单容器）
+│   ├── Dockerfile        # 多阶段:web-build（Vite）→ server-build（tsc+prune）→ 运行时合并
+│   ├── server/           # server/package.json、tsconfig、src/
+│   └── web/              # web/package.json、tsconfig、vite.config、index.html、src/、public/
 ├── caddy/
-│   └── Caddyfile
+│   └── Caddyfile         # 仅 proxy 扩展使用:默认 :80 纯反代,顶部含 TLS 启用模板
 ├── docker-compose.yml
+├── docker-compose.cn.yml
+├── docker-compose.proxy.yml   # 可选反代扩展 overlay
 └── docs/SPEC.md
 ```
 
 `docker-compose.yml` 关键点：
 
-- `server`：环境变量 `API_KEY`（必填）、`PORT`；volume 挂载数据目录（SQLite 文件）。
-- `web`：多阶段构建，最终以 `nginx:alpine`（或纯文件 stage）形态将 `/usr/share/caddy` 产物通过 named volume 共享给 Caddy —— 实际实现取"构建产物 volume 共享"方案，`web` 容器无需常驻运行。
-- `caddy`：唯一暴露端口的容器（如 `31291:80`），挂载 web 构建产物 volume 与 Caddyfile。
+- `app`：单容器，唯一服务。环境变量 `API_KEY`（必填）、`PORT`、`DATA_DIR`、`PUBLIC_DIR`；`ports` 暴露 `${CLIPNOTE_PORT:-31291}:3000`；volume 挂载数据目录（SQLite 文件）。
+- 前端构建产物在镜像构建期（web-build stage）产出，运行时位于容器内 `/app/public`，由 Express `express.static` 托管（挂载于鉴权中间件之前，静态匿名可达；SPA fallback 跳过 `/api/*` 与 `/ws`）。
 - 数据持久化：named volume `clipnote-data` → `/data`（SQLite 数据库文件所在）。
-- 无 HTTPS（外部经 `IP:端口` 明文访问，由用户自行决定是否在前置网关加 TLS）。
+- 无 HTTPS（外部经 `IP:端口` 明文访问；需要 TLS 时叠加 `docker-compose.proxy.yml`，见 DEPLOY.md）。
 
 ## 8. 安全要点
 
@@ -256,7 +252,9 @@ clipnote/
 - 插入 API 对 `content` 做 zod 校验：必须为 string、非空、上限设 1MB（防御性上限，防误传大文本拖垮内存）。
 - SQLite 全程参数化查询，杜绝注入。
 - 前端渲染条目内容时 React 默认转义，无 XSS 风险；不使用 `dangerouslySetInnerHTML`。
-- Caddy 不透传多余请求头到 server；server 端 CORS 不放开（同源部署 + 外部脚本直连 `/api` 不受 CORS 影响，因为非浏览器请求无 CORS 限制）。
+- 静态文件经 `express.static` 匿名托管（挂载于鉴权之前），仅 `dist` 目录内容可达，无目录列举；`/api` 与 `/ws` 全部经 Bearer API Key 鉴权。
+- server 端 CORS 不放开（同源部署 + 外部脚本直连 `/api` 不受 CORS 影响，因为非浏览器请求无 CORS 限制）。
+- 可选 Caddy 反代仅透传请求（`reverse_proxy`），不注入额外头。
 
 ## 9. 里程碑开发计划
 
@@ -265,7 +263,7 @@ clipnote/
 | **M1 Server 核心** | 项目骨架（TS + Express + zod）、SQLite 建表与 WAL、剪切板 CRUD、条目增/删/改、重复检查端点、API Key 鉴权中间件 | curl 可完成全部 REST 流程；duplicates 端点能正确返回重复分组 |
 | **M2 实时推送** | `ws` 集成、鉴权、心跳与断连清理、六类事件广播 | 两个终端各开一条 WS 连接，一端 curl 插入条目，另一端秒级收到 `item.created` |
 | **M3 前端接入** | CRA→Vite 迁移、TypeScript 化、API 层与 WS 层封装、对接全部交互（含条目编辑与"检查重复"按钮） | 浏览器操作与 curl 插入双向实时同步；断网重连后数据自动补齐；检查重复可正确高亮重复条目 |
-| **M4 容器化部署** | server/web Dockerfile、Caddyfile、docker-compose.yml、.env 示例与 README 部署说明 | 服务器上 `docker compose up -d` 后，外部 `IP:端口` 可正常使用全部功能 |
+| **M4 容器化部署** | 单容器 Dockerfile（app：web-build + server-build 多阶段）、docker-compose（含 .cn 与可选 .proxy 扩展）、.env 示例与 README 部署说明 | 服务器上 `docker compose up -d` 后，外部 `IP:端口` 可正常使用全部功能 |
 | **M5（可选增强）** | FTS5 条目内容搜索、桌面端/快捷指令对接示例脚本、`VACUUM INTO` 定时备份脚本 | —— |
 
 里程碑依赖关系：M1 → M2 → M3 → M4，M5 独立可随时插入。
@@ -279,4 +277,4 @@ clipnote/
 | 条目语义 | 可增/删/改 + 手动检查重复 | 对齐 preview 既有交互；不做自动去重，重复检查由用户按需触发，基于存储的内容哈希分组实现 |
 | 鉴权 | 单用户 + API Key | 防公网裸奔的最小成本方案；多用户需求出现前不做 |
 | 前端 | CRA → Vite | CRA 已停止维护，迁移成本低且一次性完成 |
-| 反代 | Caddy 进 compose | 配置量最小，静态托管 + 反代 + WS 透传一站式 |
+| 反代 | Caddy 降级为可选扩展位（2026-10-25 单容器合并） | 单容器自持后反代仅在未来 HTTPS/域名接入时需要；扩展位预写 TLS 模板，启用即用 |
