@@ -1,7 +1,8 @@
 # ClipNote 部署文档（Docker Compose）
 
-> 依据 SPEC.md 第 7 节的部署架构：Caddy（反向代理 + 静态托管）→ server（Node.js + SQLite），
-> 前端构建产物经共享 volume 交给 Caddy，数据持久化于 named volume。
+> 依据 SPEC.md 第 7 节的部署架构：单容器 `app`（Node.js + SQLite），Express 自持
+> 静态文件（SPA）+ `/api` + `/ws`；数据持久化于 named volume。可选叠加 Caddy 反代
+> 扩展位接入 HTTPS/域名（见第 10 节）。
 
 ## 1. 架构说明
 
@@ -9,38 +10,37 @@
 外部请求 (http://<IP>:31291)
         │
         ▼
-   ┌─────────┐   /api/*, /ws    ┌────────────────────┐
-   │  caddy  │ ───────────────► │  server (Node.js)  │
-   │  :80    │                  │  Express + ws      │
-   │ 静态文件 │                  │  better-sqlite3    │
-   └─────────┘                  └─────────┬──────────┘
-        ▲                                 │
-        │ web-dist 卷（构建产物）          ▼
-   ┌─────────┐                      SQLite 卷 clipnote-data
-   │   web   │ （构建后退出）
-   └─────────┘
+   ┌────────────────────────────────┐
+   │  app (Node.js, 单容器)          │
+   │  Express + ws + better-sqlite3 │
+   │  :3000                         │
+   │  /        → 静态文件（SPA）     │
+   │  /api/*   → 鉴权后进路由        │
+   │  /ws      → WebSocket          │
+   └───────────────┬────────────────┘
+                   ▼
+          SQLite 卷 clipnote-data
 ```
 
-三个服务：
+单服务：
 
 | 服务 | 职责 | 常驻 |
 |------|------|------|
-| `server` | REST API + WebSocket + SQLite，不对外直接暴露端口 | 是 |
-| `web` | 构建前端静态文件，写入 `web-dist` 共享卷后退出 | 否 |
-| `caddy` | 唯一对外端口容器：静态托管 + `/api/*`、`/ws` 反代 | 是 |
+| `app` | 静态文件托管（`express.static`，挂载于鉴权之前）+ REST API + WebSocket + SQLite，唯一对外端口 | 是 |
 
-路由规则：`/` → 静态文件（SPA fallback 到 `index.html`）；`/api/*` 与 `/ws` → `server:3000`。
+路由规则：`/` → 静态文件（SPA fallback 到 `index.html`，跳过 `/api/*` 与 `/ws`）；`/api/*` 与 `/ws` → Bearer API Key 鉴权。
 
 ## 2. 文件清单
 
 ```
 clipnote/
-├── server/Dockerfile         # 多阶段构建：node:22-alpine3.22；better-sqlite3 v13 为 N-API
-│                             #   预编译二进制随包分发，构建无需任何编译工具链
-├── web/Dockerfile            # 多阶段构建：产出静态文件，启动时拷入共享卷后退出
-├── caddy/Caddyfile           # 静态托管 + SPA fallback + 反代 /api 与 /ws
+├── app/Dockerfile            # 多阶段构建：web-build（Vite 产物）→ server-build（tsc+prune）
+│                             #   → 运行时合并；better-sqlite3 v13 为 N-API 预编译二进制
+│                             #   随包分发，构建无需任何编译工具链
+├── caddy/Caddyfile           # 仅反代扩展使用：默认 :80 纯反代，顶部含 TLS 启用模板
 ├── docker-compose.yml        # 国际版（官方镜像源）
-├── docker-compose.cn.yml     # 中国大陆专用版（镜像加速 + npmmirror + USTC apk 源）
+├── docker-compose.cn.yml     # 中国大陆专用版（镜像加速 + npmmirror）
+├── docker-compose.proxy.yml  # 可选反代扩展 overlay（平时不启用）
 ├── .env.example              # 环境变量模板（复制为 .env 使用）
 └── docs/DEPLOY.md            # 本文档
 ```
@@ -92,16 +92,15 @@ docker compose -f docker-compose.cn.yml up -d --build
 | `API_KEY` | 是 | — | API 鉴权 Key，所有 `/api/*` 与 `/ws` 请求需 `Authorization: Bearer <API_KEY>` |
 | `CLIPNOTE_PORT` | 否 | `31291` | 对外端口，外部访问 `http://<IP>:<端口>` |
 
-server 容器内部固定 `PORT=3000`、`DATA_DIR=/data`，无需修改。
+容器内部固定 `PORT=3000`、`DATA_DIR=/data`、`PUBLIC_DIR=/app/public`，无需修改。
 
 ## 5. 常用运维命令
 
 ```bash
 # 查看日志
-docker compose logs -f server
-docker compose logs -f caddy
+docker compose logs -f app
 
-# 更新代码后重新部署（web 重新构建后 caddy 自动拿到新静态文件）
+# 更新代码后重新部署（前后端一起重建进镜像）
 docker compose up -d --build
 
 # 停止 / 启动
@@ -119,9 +118,9 @@ SQLite 数据库位于 named volume `clipnote-data` 中（容器内 `/data/clipn
 **在线备份（推荐）**：
 
 ```bash
-docker compose exec server node -e \
+docker compose exec app node -e \
   "require('better-sqlite3')('/data/clipnote.db').exec(\"VACUUM INTO '/data/backup.db'\")"
-docker compose cp server:/data/backup.db ./clipnote-backup.db
+docker compose cp app:/data/backup.db ./clipnote-backup.db
 ```
 
 **离线备份**：`docker compose down` 后执行
@@ -166,9 +165,9 @@ docker volume rm <项目名>_clipvault-data
 国内镜像加速站可用性时常变化。如某个源拉取失败，换源无需改 Dockerfile —— 在 `.env` 中覆盖变量即可（两版 compose 均支持变量覆盖）：
 
 ```dotenv
-# 基础镜像（node / alpine 统一替换）
+# 基础镜像
 NODE_IMAGE=docker.1ms.run/library/node:22-alpine3.22
-ALPINE_IMAGE=docker.1ms.run/library/alpine:3.20
+# 反代扩展（仅 proxy overlay 使用）
 CADDY_IMAGE=docker.1ms.run/library/caddy:2-alpine
 # npm 源（如需换）
 NPM_REGISTRY=https://registry.npmmirror.com
@@ -193,5 +192,40 @@ NPM_REGISTRY=https://registry.npmmirror.com
 | `API_KEY is required` 报错 | 未创建 `.env` 或未设置 `API_KEY`，见第 3 节 |
 | 拉取镜像超时/失败 | 用 `docker-compose.cn.yml`，或按第 8 节换源 |
 | 页面打开但无数据/接口 401 | `.env` 的 `API_KEY` 与客户端（脚本/快捷指令）携带的不一致 |
-| 修改前端代码不生效 | 必须带 `--build` 重新构建（web 服务执行构建并刷新 `web-dist` 卷） |
-| WebSocket 无法连接 | Caddyfile 已透传 `/ws` 升级请求，检查是否直连了 server 端口（应统一走对外端口） |
+| 修改前端代码不生效 | 必须带 `--build` 重新构建（前端产物在镜像构建期并入 `/app/public`） |
+| WebSocket 无法连接 | 单容器内 ws 与 Express 同端口，检查是否走了对外端口而非直连容器 |
+
+## 10. 可选：接入 HTTPS（反代扩展位）
+
+单容器平时自持全部服务。未来需要 HTTPS/域名时，叠加反代扩展：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+# 国内：docker compose -f docker-compose.cn.yml -f docker-compose.proxy.yml up -d
+```
+
+启用后 caddy 占用对外端口（`CLIPNOTE_PORT`，默认 31291），app 转为仅容器网络内可达。
+
+上 TLS：
+
+1. DNS 将域名解析到服务器，宿主机 443 可达；
+2. 编辑 `caddy/Caddyfile`，把 `:80` 站点块替换为顶部注释中的域名模板；
+3. `up -d` 重建 caddy，Caddy 自动签发并续期证书。
+
+> 叠加 proxy 需 Docker Compose v2.24+（用到 `!reset` 覆盖语法，`docker compose version` 可查）。
+> WebSocket 经 caddy 自动透传升级头，无需额外配置。
+
+## 11. 从三容器旧版本升级
+
+2026-10-25 前的部署为三容器（server/web/caddy），升级到单容器：
+
+```bash
+# 1. 同步新文件后直接重建（旧 server/caddy/web 容器由 compose 自动移除）
+docker compose -f docker-compose.cn.yml up -d --build
+
+# 2. 确认服务正常后清理孤儿卷（web 构建产物卷与 caddy 缓存卷，已无引用）
+docker volume ls | grep -E 'web-dist|caddy'
+docker volume rm <项目名>_web-dist <项目名>_caddy-data <项目名>_caddy-config
+```
+
+数据卷 `clipnote-data` 命名未变，数据无需迁移。`docker compose down` 不会删除 named volume，升级零数据风险。
