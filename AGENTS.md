@@ -49,7 +49,7 @@ Dockerfile    根目录多阶段单容器构建
 
 **每完成一组改动就提交，不要攒批；小而可审查的提交是常态。**
 
-格式：`type(scope): 中文描述`
+格式：`type(scope): 中文描述` ，必要时可省略 scope
 
 - `type` 英文：`feat` / `fix` / `docs` / `chore` / `refactor` / `style` / `test` / `perf` / `ci` / `build`
 - `scope` 可选、英文小写：`web` / `server` / `api` / `ui` / `plugins` / `deploy` / `spec` / `ci` / `version`
