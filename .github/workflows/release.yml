@@ -20,12 +20,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Verify lockfiles in sync
         # npm ci 遇到 package.json 与 lockfile 不同步会直接失败，
         # 在构建前暴露依赖清单与 lockfile 漂移（dry-run 不写 node_modules）
         run: |
           npm ci --dry-run --ignore-scripts --prefix web
           npm ci --dry-run --ignore-scripts --prefix server
+
+      - name: Install dependencies
+        run: |
+          npm ci --ignore-scripts --prefix web
+          npm ci --ignore-scripts --prefix server
+
+      - name: Test and typecheck
+        # 发布门禁：任何一项失败则中止，坏代码不得构建成 latest 镜像
+        run: |
+          (cd web && npm test && npx tsc -b)
+          npm run typecheck --prefix server
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
