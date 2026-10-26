@@ -226,12 +226,14 @@ CREATE INDEX idx_items_hash ON clipboard_items(clipboard_id, content_hash);
 ## 7. 部署（Docker Compose）
 
 ```
-clipnote/（仓库根目录即构建上下文）
+clipnote/
 ├── Dockerfile            # 多阶段:web-build（Vite）→ server-build（tsc+prune）→ 运行时合并
 ├── .dockerignore         # 排除 .git/node_modules/.env 等,上下文只留 server/ 与 web/ 所需
+├── scripts/build.sh      # 组装 docker/ 部署暂存区（CI 构建上下文为仓库根目录，本地为 docker/app/）
 ├── server/               # server/package.json、tsconfig、src/
 ├── web/                  # web/package.json、tsconfig、vite.config、index.html、src/、public/
-└── docker/               # 部署暂存区（不跟踪）:compose/Caddyfile/.env.example
+└── docker/               # 部署暂存区（不跟踪），构建上下文为其中的 app/
+    ├── app/              # build.sh 组装:Dockerfile、.dockerignore（复制自根目录）、server/、web/
     ├── caddy/
     │   └── Caddyfile     # 仅 proxy 扩展使用:默认 :80 纯反代,顶部含 TLS 启用模板
     ├── docker-compose.yml
