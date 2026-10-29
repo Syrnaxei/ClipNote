@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './PluginsView.css';
 import PopConfirm from './PopConfirm';
 import { WARN_MARK } from './PluginTrustModal';
@@ -17,11 +17,20 @@ function PluginAvatar({ plugin }: { plugin: Plugin }) {
   const [imgReady, setImgReady] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const githubUser = plugin.github_url?.split('/').pop() ?? null;
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  useLayoutEffect(() => {
+    const el = imgRef.current;
+    // 命中缓存时 onLoad 仍晚于首帧绘制，挂载时同步探测，避免切换插件时字母头像闪烁
+    if (!el?.complete) return;
+    if (el.naturalWidth > 0) setImgReady(true);
+    else setImgFailed(true);
+  }, [githubUser]);
   return (
     <span className="plugins-avatar">
       {plugin.author.slice(0, 1)}
       {githubUser !== null && !imgFailed && (
         <img
+          ref={imgRef}
           className={`plugins-avatar-img ${imgReady ? 'ready' : ''}`}
           src={`https://github.com/${githubUser}.png?size=80`}
           alt={plugin.author}
