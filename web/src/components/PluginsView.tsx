@@ -13,19 +13,24 @@ interface PluginsViewProps {
 }
 
 function PluginAvatar({ plugin }: { plugin: Plugin }) {
-  const [failed, setFailed] = useState(false);
+  // 字母头像常驻打底，GitHub 头像加载成功后叠上替换；失败则保持字母头像
+  const [imgReady, setImgReady] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
   const githubUser = plugin.github_url?.split('/').pop() ?? null;
-  if (githubUser && !failed) {
-    return (
-      <img
-        className="plugins-avatar plugins-avatar-img"
-        src={`https://github.com/${githubUser}.png?size=80`}
-        alt={plugin.author}
-        onError={() => setFailed(true)}
-      />
-    );
-  }
-  return <span className="plugins-avatar">{plugin.author.slice(0, 1)}</span>;
+  return (
+    <span className="plugins-avatar">
+      {plugin.author.slice(0, 1)}
+      {githubUser !== null && !imgFailed && (
+        <img
+          className={`plugins-avatar-img ${imgReady ? 'ready' : ''}`}
+          src={`https://github.com/${githubUser}.png?size=80`}
+          alt={plugin.author}
+          onLoad={() => setImgReady(true)}
+          onError={() => setImgFailed(true)}
+        />
+      )}
+    </span>
+  );
 }
 
 const GITHUB_MARK = (
