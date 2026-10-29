@@ -451,8 +451,19 @@ function ClipboardList({
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
             </button>
+            <PopConfirm
+              title={`确定删除剪切板「${clipboard.name}」吗？其中的所有条目都会被删除。`}
+              onConfirm={() => onDeleteClipboard(clipboard.id)}
+            >
+              <button className="menu-action delete" title="删除">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </PopConfirm>
             <button
-              className="menu-action info"
+              className="menu-action info info-fixed"
               onClick={() => {
                 setEditModalOpen(true);
                 setMenuOpen(false);
@@ -465,17 +476,6 @@ function ClipboardList({
                 <line x1="12" y1="8" x2="12.01" y2="8"></line>
               </svg>
             </button>
-            <PopConfirm
-              title={`确定删除剪切板「${clipboard.name}」吗？其中的所有条目都会被删除。`}
-              onConfirm={() => onDeleteClipboard(clipboard.id)}
-            >
-              <button className="menu-action delete" title="删除">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-              </button>
-            </PopConfirm>
           </div>
         )}
       </div>
