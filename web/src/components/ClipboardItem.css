@@ -123,6 +123,14 @@
   color: var(--accent);
 }
 
+.action-button.shift svg {
+  transition: transform 0.25s ease;
+}
+
+.action-button.shift.shifted svg {
+  transform: rotate(180deg);
+}
+
 .action-button.copy:hover {
   background-color: var(--accent-soft);
   color: var(--accent);
