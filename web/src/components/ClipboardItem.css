@@ -39,6 +39,11 @@
   line-height: 1.6;
   word-break: break-word;
   white-space: pre-wrap;
+  transition: padding-top 0.2s ease;
+}
+
+.content-text.shifted {
+  padding-top: var(--actions-offset, 46px);
 }
 
 .content-text::selection {
@@ -111,6 +116,11 @@
 .action-button.delete:hover {
   background-color: var(--error);
   color: var(--on-accent);
+}
+
+.action-button.shift.shifted {
+  background-color: var(--accent-soft);
+  color: var(--accent);
 }
 
 .action-button.copy:hover {

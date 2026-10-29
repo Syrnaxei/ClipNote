@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Clipboard, ClipboardItem } from '../types';
 import { DEVICE_TYPES } from '../types';
 import type { ItemActionId, ItemActionSetting } from '../itemActions';
@@ -90,10 +90,52 @@ function ClipboardItem({
   const [copied, setCopied] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  // 与按钮组区域重叠的超长文本显示下移按钮，点击整体下移文本，再点复位
+  const [shifted, setShifted] = useState(false);
+  const [actionsOverlap, setActionsOverlap] = useState(false);
+  const [actionsOffset, setActionsOffset] = useState(46);
+  const shiftedRef = useRef(false);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const copyTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(copyTimerRef.current), []);
+
+  const visibleActions = itemActions.order.filter(
+    (id) => !itemActions.hidden.includes(id) && (id !== 'plugin' || pluginName),
+  );
+
+  useEffect(() => {
+    const textEl = textRef.current;
+    const actionsEl = actionsRef.current;
+    if (isMobile || !textEl || !actionsEl) {
+      setActionsOverlap(false);
+      return;
+    }
+    const measure = () => {
+      const offset = actionsEl.offsetHeight;
+      setActionsOffset(offset);
+      const actionsRect = actionsEl.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(textEl);
+      // 行位置换算回未下移状态，保证按钮显隐与下移状态解耦，否则切换后会互相触发循环
+      const restPadding = shiftedRef.current ? offset : 0;
+      const overlap = Array.from(range.getClientRects()).some(
+        (r) => r.height > 0 && r.top - restPadding < actionsRect.bottom && r.right > actionsRect.left,
+      );
+      setActionsOverlap(overlap);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(textEl);
+    observer.observe(actionsEl);
+    return () => observer.disconnect();
+  }, [item.content]);
+
+  useLayoutEffect(() => {
+    shiftedRef.current = shifted;
+  }, [shifted]);
 
   const longPress = useMemo(
     () =>
@@ -151,10 +193,6 @@ function ClipboardItem({
       copyTimerRef.current = window.setTimeout(() => setCopied(false), 1500);
     }
   };
-
-  const visibleActions = itemActions.order.filter(
-    (id) => !itemActions.hidden.includes(id) && (id !== 'plugin' || pluginName),
-  );
 
   const renderAction = (id: ItemActionId) => {
     switch (id) {
@@ -254,7 +292,13 @@ function ClipboardItem({
       ) : (
         <div className="view-mode" {...pressHandlers}>
           <div className="item-body">
-            <span className="content-text">{item.content}</span>
+            <span
+              ref={textRef}
+              className={`content-text${shifted ? ' shifted' : ''}`}
+              style={{ '--actions-offset': `${actionsOffset}px` } as React.CSSProperties}
+            >
+              {item.content}
+            </span>
             <div className="item-meta">
               <span className="item-time">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -280,10 +324,30 @@ function ClipboardItem({
             </div>
           </div>
           {visibleActions.length > 0 && (
-            <div className="action-buttons">
+            <div className="action-buttons" ref={actionsRef}>
               {visibleActions.map((id) => (
                 <Fragment key={id}>{renderAction(id)}</Fragment>
               ))}
+              {actionsOverlap && (
+                <button
+                  className="action-button shift"
+                  onClick={() => setShifted((v) => !v)}
+                  title={shifted ? '复位文本' : '下移文本'}
+                  aria-label={shifted ? '复位文本' : '下移文本'}
+                >
+                  {shifted ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="19" x2="12" y2="5"></line>
+                      <polyline points="19 12 12 5 5 12"></polyline>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <polyline points="19 12 12 19 5 12"></polyline>
+                    </svg>
+                  )}
+                </button>
+              )}
             </div>
           )}
         </div>
