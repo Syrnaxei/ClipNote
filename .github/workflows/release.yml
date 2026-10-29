@@ -19,6 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 全量历史 + tag，供 changelog 取上一 tag 区间
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -76,7 +79,55 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build changelog from commits
+        id: changelog
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          prev=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          range="${prev:+$prev..}$TAG"
+          echo "changelog range: $range"
+          body=$(mktemp)
+          {
+            echo "## What's Changed"
+            echo
+            emit() {
+              local label="$1" pattern="$2" lines
+              lines=$(git log --no-merges --pretty=format:'- %s (%h)' "$range" \
+                | grep -E -- "^- (${pattern})" || true)
+              if [ -n "$lines" ]; then
+                echo "### ${label}"
+                echo
+                echo "$lines"
+                echo
+              fi
+            }
+            emit '新增' 'feat'
+            emit '修复' 'fix'
+            emit '性能' 'perf'
+            emit '重构' 'refactor'
+            emit '文档' 'docs'
+            emit '测试' 'test'
+            emit '其他' 'chore|ci|build|style'
+            # 未按 conventional commits 命名的提交兜底
+            lines=$(git log --no-merges --pretty=format:'- %s (%h)' "$range" \
+              | grep -Ev -- '^- (feat|fix|perf|refactor|docs|test|chore|ci|build|style)' || true)
+            if [ -n "$lines" ]; then
+              echo "### 未分类"
+              echo
+              echo "$lines"
+              echo
+            fi
+          } > "$body"
+          {
+            echo "body<<CHANGELOG_EOF"
+            cat "$body"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          body: ${{ steps.changelog.outputs.body }}
           generate_release_notes: true
