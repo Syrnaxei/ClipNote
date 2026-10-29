@@ -1,0 +1,31 @@
+# ClipNote — 可选反代扩展（proxy overlay）
+#
+# 平时不启用。未来需要 HTTPS/域名/独立反代层时，与主 compose 叠加使用：
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+# 国内环境：
+#   docker compose -f docker-compose.cn.yml -f docker-compose.proxy.yml up -d
+#
+# 注意：
+#   1. 本文件会移除主 compose 里 app 的宿主机端口映射，改由 caddy 占用 ${CLIPNOTE_PORT:-31291}；
+#      容器间仍以 app:3000 互通。
+#   2. Caddyfile 默认 :80 纯反代；TLS 启用模板见 docker/caddy/Caddyfile 顶部注释
+#      （填入域名后 Caddy 自动签发续期证书，需宿主机 443 可达）。
+services:
+  app:
+    ports: !reset []
+
+  caddy:
+    image: ${CADDY_IMAGE:-caddy:2-alpine}
+    ports:
+      - "${CLIPNOTE_PORT:-31291}:80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  caddy-config:

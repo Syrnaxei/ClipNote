@@ -115,12 +115,16 @@ docker compose pull && docker compose up -d
 
 ```bash
 git clone https://github.com/Syrnaxei/ClipNote.git clipnote
-cd clipnote/docker
+cd clipnote
+bash scripts/build.sh     # 组装 docker/ 部署目录（构建上下文）
+cd docker
 cp .env.example .env      # 编辑 .env，设置强随机 API_KEY
 docker compose up -d --build
 # 中国大陆服务器使用专用版（走国内镜像源）：
 # docker compose -f docker-compose.cn.yml up -d --build
 ```
+
+> Windows 独立窗口运行 build.sh 时，脚本执行完毕会保持窗口打开，按 Ctrl+C 退出即可。
 
 ### 验证
 

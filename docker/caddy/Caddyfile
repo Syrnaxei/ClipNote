@@ -1,0 +1,16 @@
+# ClipNote — Caddy 反代配置（配合 docker-compose.proxy.yml 使用）
+#
+# 平时单容器自持服务，本文件仅在叠加 proxy 扩展时生效。
+#
+# TLS 启用模板：把默认站点块替换为你的域名即可，Caddy 自动签发并续期证书
+# （需宿主机 443 端口可达，DNS 已解析到本机）：
+#
+#   your.domain.com {
+#       reverse_proxy app:3000
+#   }
+#
+# caddy 对 WebSocket 升级请求自动透传，无需显式配置。
+
+:80 {
+	reverse_proxy app:3000
+}

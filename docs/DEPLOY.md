@@ -33,14 +33,17 @@
 ## 2. 文件清单
 
 ```
-clipnote/（部署目录 = 仓库检出或同步的源码树，根目录即构建上下文）
+clipnote/（仓库检出或同步的源码树）
 ├── Dockerfile                # 多阶段构建：web-build（Vite 产物）→ server-build（tsc+prune）
 │                             #   → 运行时合并；better-sqlite3 v13 为 N-API 预编译二进制
 │                             #   随包分发，构建无需任何编译工具链
 ├── .dockerignore             # 排除 .git/node_modules/.env 等，上下文只留构建所需
-├── server/                   # 后端源码（构建上下文引用）
-├── web/                      # 前端源码（构建上下文引用）
-└── docker/
+├── scripts/build.sh          # 组装 docker/ 部署暂存区（Dockerfile/.dockerignore 复制自根目录，
+│                             #   server/ 与 web/ 构建所需文件复制到 docker/app/）
+├── server/                   # 后端源码（组装时复制进 docker/app/server/）
+├── web/                      # 前端源码（组装时复制进 docker/app/web/）
+└── docker/                   # 部署暂存区（不跟踪），构建上下文为其中的 app/
+    ├── app/                  # build.sh 组装的构建上下文：Dockerfile、.dockerignore、server/、web/
     ├── caddy/Caddyfile       # 仅反代扩展使用：默认 :80 纯反代，顶部含 TLS 启用模板
     ├── docker-compose.yml    # 国际版（官方镜像源）
     ├── docker-compose.cn.yml # 中国大陆专用版（镜像加速 + npmmirror）
@@ -63,18 +66,22 @@ clipnote/（部署目录 = 仓库检出或同步的源码树，根目录即构�
 前置要求：Docker Engine 20.10+ 与 Docker Compose v2（`docker compose version` 可查）。
 
 ```bash
-# 1. 进入部署目录（仓库根目录即构建上下文）
-cd clipnote/docker
+# 1. 组装部署目录（docker/ 为部署暂存区，构建上下文组装到 docker/app/）
+bash scripts/build.sh
+#    Windows 独立窗口运行时脚本执行完毕会保持窗口打开，按 Ctrl+C 退出即可
 
-# 2. 配置环境变量
+# 2. 进入部署目录
+cd docker
+
+# 3. 配置环境变量
 cp .env.example .env
 #    编辑 .env，设置强随机 API_KEY，例如：
 #    openssl rand -hex 32          （Windows 可用 Git Bash 执行同条命令）
 
-# 3. 构建并启动
+# 4. 构建并启动
 docker compose up -d --build
 
-# 4. 验证
+# 5. 验证
 curl -H "Authorization: Bearer <你的API_KEY>" http://localhost:31291/api/clipboards
 #    浏览器打开 http://<服务器IP>:31291
 ```
@@ -85,6 +92,8 @@ curl -H "Authorization: Bearer <你的API_KEY>" http://localhost:31291/api/clipb
 cp .env.example .env    # 同样先配置 API_KEY
 docker compose -f docker-compose.cn.yml up -d --build
 ```
+
+> 源码更新后重新部署：重跑 `bash scripts/build.sh` 同步最新源码到 `docker/app/`，再 `docker compose up -d --build`。
 
 首次构建约需几分钟；中国版全程只走国内镜像源与 npm registry，不依赖 GitHub/Docker Hub 直连。
 

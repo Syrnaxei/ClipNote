@@ -162,6 +162,12 @@
   opacity: 1;
 }
 
+.menu-action.info-fixed {
+  width: 32px;
+  margin-left: 8px;
+  opacity: 1;
+}
+
 .header-actions.open > :nth-child(2) {
   transition-delay: 0.04s, 0.04s, 0.04s, 0s, 0s;
 }

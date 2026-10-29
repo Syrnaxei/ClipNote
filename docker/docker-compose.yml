@@ -1,0 +1,23 @@
+# ClipNote — Docker Compose（国际版，官方镜像源）
+# 单容器架构：app 同时提供静态文件（SPA）、/api 与 /ws。
+# 构建上下文 docker/app/ 由 scripts/build.sh 组装，构建前先运行该脚本。
+services:
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-alpine3.22}
+    ports:
+      - "${CLIPNOTE_PORT:-31291}:3000"
+    environment:
+      API_KEY: ${API_KEY:?API_KEY is required - set it in .env}
+      PORT: 3000
+      DATA_DIR: /data
+      PUBLIC_DIR: /app/public
+    volumes:
+      - clipnote-data:/data
+    restart: unless-stopped
+
+volumes:
+  clipnote-data:

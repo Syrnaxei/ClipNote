@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './PluginsView.css';
 import PopConfirm from './PopConfirm';
 import { WARN_MARK } from './PluginTrustModal';
 import { api } from '../api';
+import { copyText } from '../clipboard';
 import { parseCvt, CvtParseError, type CvtPlugin } from '../plugins/parseCvt';
 import { clearPluginStorage } from '../plugins/toolbarBridge';
 import type { Plugin } from '../types';
@@ -12,19 +13,33 @@ interface PluginsViewProps {
 }
 
 function PluginAvatar({ plugin }: { plugin: Plugin }) {
-  const [failed, setFailed] = useState(false);
+  // 字母头像常驻打底，GitHub 头像加载成功后叠上替换；失败则保持字母头像
+  const [imgReady, setImgReady] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
   const githubUser = plugin.github_url?.split('/').pop() ?? null;
-  if (githubUser && !failed) {
-    return (
-      <img
-        className="plugins-avatar plugins-avatar-img"
-        src={`https://github.com/${githubUser}.png?size=80`}
-        alt={plugin.author}
-        onError={() => setFailed(true)}
-      />
-    );
-  }
-  return <span className="plugins-avatar">{plugin.author.slice(0, 1)}</span>;
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  useLayoutEffect(() => {
+    const el = imgRef.current;
+    // 命中缓存时 onLoad 仍晚于首帧绘制，挂载时同步探测，避免切换插件时字母头像闪烁
+    if (!el?.complete) return;
+    if (el.naturalWidth > 0) setImgReady(true);
+    else setImgFailed(true);
+  }, [githubUser]);
+  return (
+    <span className="plugins-avatar">
+      {plugin.author.slice(0, 1)}
+      {githubUser !== null && !imgFailed && (
+        <img
+          ref={imgRef}
+          className={`plugins-avatar-img ${imgReady ? 'ready' : ''}`}
+          src={`https://github.com/${githubUser}.png?size=80`}
+          alt={plugin.author}
+          onLoad={() => setImgReady(true)}
+          onError={() => setImgFailed(true)}
+        />
+      )}
+    </span>
+  );
 }
 
 const GITHUB_MARK = (
@@ -55,7 +70,11 @@ function PluginsView({ onBack }: PluginsViewProps) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState<CvtPlugin | null>(null);
+  const [nameCopied, setNameCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const nameCopyTimerRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(nameCopyTimerRef.current), []);
 
   useEffect(() => {
     api
@@ -79,6 +98,15 @@ function PluginsView({ onBack }: PluginsViewProps) {
   };
 
   const selected = plugins.find((p) => p.id === selectedId) ?? null;
+
+  const doCopyName = async () => {
+    if (!selected) return;
+    if (await copyText(selected.name)) {
+      setNameCopied(true);
+      window.clearTimeout(nameCopyTimerRef.current);
+      nameCopyTimerRef.current = window.setTimeout(() => setNameCopied(false), 1500);
+    }
+  };
 
   const handleImport = async (file: File) => {
     setError('');
@@ -264,7 +292,25 @@ function PluginsView({ onBack }: PluginsViewProps) {
                 <div className="plugins-card">
                   <div className="plugins-detail-head">
                     <div>
-                      <h2 className="plugins-detail-title">{selected.name}</h2>
+                      <div className="plugins-title-group">
+                        <h2 className="plugins-detail-title">{selected.name}</h2>
+                        <button
+                          className={`plugins-copy-button ${nameCopied ? 'copied' : ''}`}
+                          onClick={doCopyName}
+                          title={nameCopied ? '已复制' : '复制名称'}
+                        >
+                          {nameCopied ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                       <div className="plugins-author-line">
                         <PluginAvatar key={selected.id} plugin={selected} />
                         <span className="plugins-author-name">{selected.author}</span>

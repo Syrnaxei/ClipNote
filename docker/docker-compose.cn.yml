@@ -1,0 +1,33 @@
+# ClipNote — Docker Compose（中国大陆专用版）
+#
+# 与 docker-compose.yml 的差异：
+#   1. 基础镜像走国内可用的 Docker 镜像加速（DaoCloud 公共源，可按需替换）
+#   2. npm 依赖走 npmmirror（淘宝源）
+#
+# 注：better-sqlite3 v13 起为 N-API 预编译二进制随 npm 包分发，构建全程只走
+# npm registry，无 GitHub/编译工具链依赖，中国网络环境下可直接构建。
+#
+# 使用：先运行 scripts/build.sh 组装构建上下文，再执行
+#   docker compose -f docker-compose.cn.yml up -d --build
+
+services:
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-alpine3.22}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+    ports:
+      - "${CLIPNOTE_PORT:-31291}:3000"
+    environment:
+      API_KEY: ${API_KEY:?API_KEY is required - set it in .env}
+      PORT: 3000
+      DATA_DIR: /data
+      PUBLIC_DIR: /app/public
+    volumes:
+      - clipnote-data:/data
+    restart: unless-stopped
+
+volumes:
+  clipnote-data:
