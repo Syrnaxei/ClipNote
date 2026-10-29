@@ -51,7 +51,7 @@ iOS / iPadOS / macOS 用户可直接获取快捷指令，一键把剪切板内�
 
 ## 部署
 
-前置要求：Docker Engine 20.10+（使用 docker compose 方式还需 Docker Compose v2，`docker compose version` 可查）。
+前置要求：Docker Engine 20.10+（使用 docker compose 方式还需 Docker Compose v2）。
 
 已发布的多架构镜像（`linux/amd64` + `linux/arm64`）托管于 GHCR：
 
@@ -61,7 +61,7 @@ ghcr.io/syrnaxei/clipnote
 
 tag 规则：`latest`（最新发布）、`1.5`（主.次版本）、`1.5.0`（精确版本）。
 
-### 方式一：docker run（一条命令启动）
+### 方式一：docker run
 
 ```bash
 docker run -d --name clipnote \
@@ -101,6 +101,7 @@ volumes:
 ```bash
 echo "API_KEY=$(openssl rand -hex 32)" > .env
 docker compose up -d
+#填写环境变量的API_KEY、创建 .env 二者选其一即可，环境变量优先。
 ```
 
 之后升级只需：
